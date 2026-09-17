@@ -18,6 +18,7 @@ function assessment(overrides: Partial<AccountAssessment> = {}): AccountAssessme
     accountReasons: [],
     features: [],
     integrity: [],
+    quantityChecks: [],
     ...overrides,
   };
 }

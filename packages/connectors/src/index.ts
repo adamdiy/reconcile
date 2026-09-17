@@ -23,7 +23,17 @@ export interface RawStripeSubscription {
   id: string;
   customer: string | { id: string };
   status: string;
-  items: { data: Array<{ price: { id: string; unit_amount?: number | null }; quantity: number }> };
+  items: {
+    data: Array<{
+      id: string;
+      price: {
+        id: string;
+        unit_amount?: number | null;
+        recurring?: { usage_type?: string } | null;
+      };
+      quantity: number;
+    }>;
+  };
   schedule?: string | { id: string } | null;
   pause_collection?: unknown;
   trial_end?: number | null;
@@ -40,6 +50,12 @@ export interface RawStripeSubscription {
   [key: string]: unknown;
 }
 
+export interface RawUsageRecordSummary {
+  total_usage: number;
+  period: { start: number; end: number };
+  subscription_item: string;
+}
+
 export interface StripeLike {
   customers: {
     list(params?: Record<string, unknown>): Promise<StripeListPage<RawStripeCustomer>>;
@@ -47,12 +63,22 @@ export interface StripeLike {
   subscriptions: {
     list(params?: Record<string, unknown>): Promise<StripeListPage<RawStripeSubscription>>;
   };
+  subscriptionItems?: {
+    listUsageRecordSummaries(
+      itemId: string,
+      params?: Record<string, unknown>,
+    ): Promise<StripeListPage<RawUsageRecordSummary>>;
+  };
 }
 
 const iso = (epoch?: number | null): string | undefined =>
   epoch == null ? undefined : new Date(epoch * 1000).toISOString();
 
-export function mapSubscription(sub: RawStripeSubscription, observedAt: string): StripeSubscriptionFact {
+export function mapSubscription(
+  sub: RawStripeSubscription,
+  observedAt: string,
+  usageRecords?: StripeSubscriptionFact['usageRecords'],
+): StripeSubscriptionFact {
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
   const scheduleId =
     sub.schedule == null ? undefined : typeof sub.schedule === 'string' ? sub.schedule : sub.schedule.id;
@@ -68,7 +94,12 @@ export function mapSubscription(sub: RawStripeSubscription, observedAt: string):
     id: sub.id,
     customerId,
     status: sub.status as StripeSubscriptionFact['status'],
-    items: sub.items.data.map((i) => ({ priceId: i.price.id, quantity: i.quantity })),
+    items: sub.items.data.map((i) => ({
+      priceId: i.price.id,
+      quantity: i.quantity,
+      usageType: (i.price.recurring?.usage_type as 'licensed' | 'metered' | undefined) ?? undefined,
+    })),
+    usageRecords,
     scheduleId,
     pauseCollection: sub.pause_collection ? true : undefined,
     trialEnd: iso(sub.trial_end),
@@ -167,13 +198,46 @@ export class StripeApiConnector implements StripeConnector {
       expand: ['data.latest_invoice', 'data.discount'],
     });
 
+    const usageRecordsBySub = new Map<string, StripeSubscriptionFact['usageRecords']>();
+    if (stripe.subscriptionItems) {
+      for (const sub of subscriptions) {
+        for (const item of sub.items.data) {
+          if (item.price.recurring?.usage_type !== 'metered') continue;
+          try {
+            const summaries: RawUsageRecordSummary[] = [];
+            for (;;) {
+              const page = await stripe.subscriptionItems.listUsageRecordSummaries(item.id, {
+                limit: 100,
+              });
+              summaries.push(...page.data);
+              if (!page.has_more || page.data.length === 0) break;
+            }
+            const list = usageRecordsBySub.get(sub.id) ?? [];
+            for (const s of summaries)
+              list.push({
+                priceId: item.price.id,
+                quantity: s.total_usage,
+                periodStart: iso(s.period.start)!,
+                periodEnd: iso(s.period.end)!,
+              });
+            usageRecordsBySub.set(sub.id, list);
+          } catch (err) {
+            if (isPermissionError(err)) permissionsMissing.push('subscriptionItemUsageRecordSummaries');
+            else complete = false;
+          }
+        }
+      }
+    }
+
     return {
       runId,
       complete,
       observedAt,
       permissionsMissing,
       customers: customers.map((c) => mapCustomer(c, observedAt)),
-      subscriptions: subscriptions.map((s) => mapSubscription(s, observedAt)),
+      subscriptions: subscriptions.map((s) =>
+        mapSubscription(s, observedAt, usageRecordsBySub.get(s.id)),
+      ),
     };
   }
 }

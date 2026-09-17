@@ -371,6 +371,16 @@ const STUB_TEXT: Record<string, { summary: string; hypothesis: string; next: str
     hypothesis: 'identity link missing or evidence incomplete; check the reasons on the assessment',
     next: 'Confirm an identity link for the account, or review the coverage gap reasons.',
   },
+  seats_over_cap: {
+    summary: 'The account uses more seats than its licensed quantity.',
+    hypothesis: 'seat assignment grew past the purchased quantity; check recent user additions',
+    next: 'Compare seatsUsed to the licensed quantity and either remove seats or true-up the subscription.',
+  },
+  usage_not_billed: {
+    summary: 'The app recorded usage that Stripe has not billed.',
+    hypothesis: 'usage reporting job lagging or dropping records; metered price may not be reporting',
+    next: 'Verify the usage reporting job and Stripe usage record summaries for the metered price.',
+  },
 };
 
 const CAP_WORDS: Record<string, string[]> = {

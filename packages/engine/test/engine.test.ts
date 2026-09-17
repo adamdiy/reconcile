@@ -542,3 +542,108 @@ describe('fingerprint', () => {
     expect(fingerprint('a', 'r', 'f')).not.toBe(fingerprint('a', 'r', 'g'));
   });
 });
+
+describe('quantity checks', () => {
+  const qtyPolicy = {
+    ...policy,
+    seats: { priceIds: ['price_seat'] },
+    usage: [{ metric: 'api_calls', priceId: 'price_api', tolerancePct: 5 }],
+  };
+
+  function seatInput(seatsUsed: number | undefined): EvaluationInput {
+    return {
+      ...withSub(
+        { id: 'sub_1', items: [{ priceId: 'price_seat', quantity: 5, usageType: 'licensed' }] },
+        { reports: true, exports: true },
+      ),
+      app: {
+        runId: 'ar_1',
+        complete: true,
+        observedAt: NOW,
+        accounts: [
+          {
+            accountId: 'acct_1',
+            stripeCustomerIds: ['cus_1'],
+            localBillingRecords: [],
+            observedAt: NOW,
+            method: 'database_view',
+            access: { reports: true, exports: true },
+            seatsUsed,
+          },
+        ],
+      },
+      policy: qtyPolicy,
+    };
+  }
+
+  function usageInput(appUsage: number | undefined, records?: { quantity: number }[]): EvaluationInput {
+    const input = {
+      ...withSub(
+        {
+          id: 'sub_1',
+          items: [{ priceId: 'price_api', quantity: 1, usageType: 'metered' }],
+          usageRecords: records?.map((r) => ({
+            priceId: 'price_api',
+            quantity: r.quantity,
+            periodStart: '2026-09-01T00:00:00Z',
+            periodEnd: '2026-10-01T00:00:00Z',
+          })),
+        },
+        { reports: true, exports: true },
+      ),
+      policy: qtyPolicy,
+    };
+    if (appUsage !== undefined) input.app.accounts[0].usage = { api_calls: appUsage };
+    return input;
+  }
+
+  it('seats over licensed quantity → seats mismatch', () => {
+    const [a] = evaluate(seatInput(7));
+    const q = a.quantityChecks.find((x) => x.check === 'seats')!;
+    expect(q).toMatchObject({ kind: 'mismatch', expected: 5, observed: 7 });
+  });
+
+  it('seats at cap → match; under cap → match', () => {
+    for (const n of [5, 3]) {
+      const [a] = evaluate(seatInput(n));
+      expect(a.quantityChecks.find((x) => x.check === 'seats')!.kind).toBe('match');
+    }
+  });
+
+  it('missing seatsUsed → unknown not_observed', () => {
+    const [a] = evaluate(seatInput(undefined));
+    const q = a.quantityChecks.find((x) => x.check === 'seats')!;
+    expect(q).toMatchObject({ kind: 'unknown', reasons: ['not_observed'] });
+  });
+
+  it('no seat price in subscription → no seats check emitted', () => {
+    const input = { ...seatInput(10), policy: qtyPolicy };
+    input.stripe.subscriptions[0].items = [{ priceId: 'price_pro', quantity: 2 }];
+    const [a] = evaluate(input);
+    expect(a.quantityChecks.find((x) => x.check === 'seats')).toBeUndefined();
+  });
+
+  it('app usage above Stripe records beyond tolerance → usage mismatch', () => {
+    const [a] = evaluate(usageInput(12000, [{ quantity: 9000 }]));
+    const q = a.quantityChecks.find((x) => x.check === 'usage')!;
+    expect(q).toMatchObject({ kind: 'mismatch', metric: 'api_calls', expected: 12000, observed: 9000 });
+  });
+
+  it('usage within tolerance → match', () => {
+    const [a] = evaluate(usageInput(10000, [{ quantity: 9700 }]));
+    expect(a.quantityChecks.find((x) => x.check === 'usage')!.kind).toBe('match');
+  });
+
+  it('no usageRecords → unknown not_observed pointing at the sub', () => {
+    const [a] = evaluate(usageInput(5000, undefined));
+    const q = a.quantityChecks.find((x) => x.check === 'usage')!;
+    expect(q).toMatchObject({ kind: 'unknown', reasons: ['not_observed'] });
+    expect(q.evidenceIds.some((e) => e.includes('usage_records_missing'))).toBe(true);
+  });
+
+  it('missing app-side metric → unknown not_observed', () => {
+    const [a] = evaluate(usageInput(undefined, [{ quantity: 9000 }]));
+    const q = a.quantityChecks.find((x) => x.check === 'usage')!;
+    expect(q.kind).toBe('unknown');
+  });
+});

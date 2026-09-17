@@ -5,6 +5,7 @@ import type {
   EvaluationInput,
   FeatureEvaluation,
   IntegrityFinding,
+  QuantityEvaluation,
   Severity,
   StripeSubscriptionFact,
   UnknownReason,
@@ -13,7 +14,7 @@ import { createHash } from 'node:crypto';
 
 export type { CheckKind, Severity };
 
-export const ENGINE_VERSION = '0.2.0';
+export const ENGINE_VERSION = '0.3.0';
 
 type Revisioned = { observedAt: string; sourceRevision?: string };
 
@@ -124,6 +125,10 @@ export function deriveSeverity(check: CheckKind, ctx: SeverityContext = {}): Sev
       return 'low';
     case 'monitoring_health':
       return (ctx.consecutiveMissedCadences ?? 0) >= 2 ? 'medium' : 'low';
+    case 'seats_over_cap':
+      return 'medium';
+    case 'usage_not_billed':
+      return 'high';
   }
 }
 
@@ -152,12 +157,17 @@ export function bucketAccounts(
     const hasConfirmed = incidents.some(
       (i) => i.accountId === a.accountId && i.kind === 'mismatch' && i.state === 'confirmed',
     );
-    const hasMismatch = a.features.some((f) => f.kind === 'mismatch');
-    const hasUnknownFeature = a.features.some((f) => f.kind === 'unknown');
+    const hasMismatch =
+      a.features.some((f) => f.kind === 'mismatch') ||
+      a.quantityChecks.some((q) => q.kind === 'mismatch');
+    const hasUnknownFeature =
+      a.features.some((f) => f.kind === 'unknown') ||
+      a.quantityChecks.some((q) => q.kind === 'unknown');
     let bucket: Bucket['bucket'];
     if (hasConfirmed) bucket = 1;
     else if (hasMismatch) bucket = 2;
-    else if (a.accountReasons.length > 0) bucket = 3;
+    else if (a.accountReasons.length > 0 || a.quantityChecks.some((q) => q.kind === 'unknown'))
+      bucket = 3;
     else bucket = 4;
     const partialCoverage = hasUnknownFeature && a.accountReasons.length === 0;
     out.set(a.accountId, { bucket, partialCoverage });
@@ -406,6 +416,110 @@ export function evaluate(input: EvaluationInput): AccountAssessment[] {
           };
     });
 
+    const quantityChecks: QuantityEvaluation[] = [];
+    if (policy.seats && policy.seats.priceIds.length > 0) {
+      const seatPriceIds = new Set(policy.seats.priceIds);
+      const seatSubs = entitlingSubs.filter((s) =>
+        s.items.some((i) => seatPriceIds.has(i.priceId)),
+      );
+      const seatEvidence = [...evidence];
+      if (seatSubs.length > 0) {
+        const expected = seatSubs.reduce(
+          (sum, s) =>
+            sum +
+            s.items
+              .filter((i) => seatPriceIds.has(i.priceId))
+              .reduce((n, i) => n + i.quantity, 0),
+          0,
+        );
+        const observed = subject.account?.seatsUsed;
+        if (seatSubs.some((s) => s.items.length === 0)) {
+          quantityChecks.push({
+            kind: 'unknown',
+            check: 'seats',
+            expected,
+            reasons: ['unsupported_billing_model'],
+            evidenceIds: seatEvidence,
+          });
+        } else if (observed === undefined) {
+          quantityChecks.push({
+            kind: 'unknown',
+            check: 'seats',
+            expected,
+            reasons: ['not_observed'],
+            evidenceIds: seatEvidence,
+          });
+        } else if (observed > expected) {
+          quantityChecks.push({
+            kind: 'mismatch',
+            check: 'seats',
+            expected,
+            observed,
+            evidenceIds: seatEvidence,
+          });
+        } else {
+          quantityChecks.push({
+            kind: 'match',
+            check: 'seats',
+            expected,
+            observed,
+            evidenceIds: seatEvidence,
+          });
+        }
+      }
+    }
+    for (const u of policy.usage ?? []) {
+      const subsWithPrice = entitlingSubs.filter((s) =>
+        s.items.some((i) => i.priceId === u.priceId),
+      );
+      if (subsWithPrice.length === 0) continue;
+      const usageEvidence = [...evidence];
+      const expected = subject.account?.usage?.[u.metric];
+      const recs = subsWithPrice.flatMap((s) =>
+        (s.usageRecords ?? []).filter((r) => r.priceId === u.priceId),
+      );
+      const anyRecords = subsWithPrice.some((s) => s.usageRecords !== undefined);
+      const observed = recs.reduce((n, r) => n + r.quantity, 0);
+      if (expected === undefined) {
+        quantityChecks.push({
+          kind: 'unknown',
+          check: 'usage',
+          metric: u.metric,
+          expected: observed,
+          reasons: ['not_observed'],
+          evidenceIds: usageEvidence,
+        });
+      } else if (!anyRecords) {
+        quantityChecks.push({
+          kind: 'unknown',
+          check: 'usage',
+          metric: u.metric,
+          expected,
+          observed: undefined,
+          reasons: ['not_observed'],
+          evidenceIds: [...usageEvidence, `stripe:usage_records_missing:${u.priceId}`],
+        });
+      } else if (observed < expected * (1 - u.tolerancePct / 100)) {
+        quantityChecks.push({
+          kind: 'mismatch',
+          check: 'usage',
+          metric: u.metric,
+          expected,
+          observed,
+          evidenceIds: usageEvidence,
+        });
+      } else {
+        quantityChecks.push({
+          kind: 'match',
+          check: 'usage',
+          metric: u.metric,
+          expected,
+          observed,
+          evidenceIds: usageEvidence,
+        });
+      }
+    }
+
     const future = nextTransitions.filter((t) => t > evaluatedMs).sort((a, b) => a - b);
     return {
       accountId: subject.accountId,
@@ -415,6 +529,7 @@ export function evaluate(input: EvaluationInput): AccountAssessment[] {
       accountReasons,
       features,
       integrity: integrityByAccount.get(subject.accountId) ?? [],
+      quantityChecks,
       nextTransitionAt: future.length ? new Date(future[0]).toISOString() : undefined,
     };
   });

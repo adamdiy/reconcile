@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
 import type {
   AppInventory,
+  AuditBaseline,
   IdentityLink,
   Job,
   NotificationRule,
@@ -82,6 +83,10 @@ export interface ProjectStore {
   deleteNotificationRule(id: string): Promise<void>;
   getExplanation(key: string): Promise<unknown | null>;
   putExplanation(key: string, e: unknown): Promise<void>;
+  listBaselines(): Promise<Omit<AuditBaseline, 'assessments'>[]>;
+  getBaseline(id: string): Promise<AuditBaseline | null>;
+  putBaseline(b: AuditBaseline): Promise<void>;
+  deleteBaseline(id: string): Promise<void>;
 }
 
 export interface Store {
@@ -249,6 +254,25 @@ class JsonProjectStore implements ProjectStore {
   }
   async putExplanation(key: string, e: unknown) {
     this.write('explanations', { ...this.read<Record<string, unknown>>('explanations', {}), [key]: e });
+  }
+
+  async listBaselines() {
+    return this.read<AuditBaseline[]>('baselines', []).map(({ assessments: _a, ...rest }) => rest);
+  }
+  async getBaseline(id: string) {
+    return this.read<AuditBaseline[]>('baselines', []).find((b) => b.id === id) ?? null;
+  }
+  async putBaseline(b: AuditBaseline) {
+    const list = (await this.read<AuditBaseline[]>('baselines', [])).filter((x) => x.id !== b.id);
+    list.push(b);
+    list.sort((a, z) => a.id.localeCompare(z.id));
+    this.write('baselines', list);
+  }
+  async deleteBaseline(id: string) {
+    this.write(
+      'baselines',
+      this.read<AuditBaseline[]>('baselines', []).filter((x) => x.id !== id),
+    );
   }
 }
 
@@ -627,6 +651,54 @@ class PostgresProjectStore implements ProjectStore {
         ON CONFLICT (project_id, key) DO UPDATE SET payload = EXCLUDED.payload`;
     });
   }
+
+  async listBaselines() {
+    return this.scoped(async (tx) => {
+      const rows = await tx`SELECT id, name, note, created_at, created_by, policy_version, engine_version, source_observed_at, counts FROM audit_baselines WHERE project_id = ${this.projectId} ORDER BY created_at DESC`;
+      return rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        note: r.note ?? undefined,
+        createdAt: r.created_at.toISOString(),
+        createdBy: r.created_by,
+        policyVersion: r.policy_version,
+        engineVersion: r.engine_version,
+        sourceObservedAt: r.source_observed_at,
+        counts: r.counts,
+      }));
+    });
+  }
+  async getBaseline(id: string) {
+    return this.scoped(async (tx) => {
+      const rows = await tx`SELECT * FROM audit_baselines WHERE project_id = ${this.projectId} AND id = ${id}`;
+      const r = rows[0];
+      if (!r) return null;
+      return {
+        id: r.id,
+        name: r.name,
+        note: r.note ?? undefined,
+        createdAt: r.created_at.toISOString(),
+        createdBy: r.created_by,
+        policyVersion: r.policy_version,
+        engineVersion: r.engine_version,
+        sourceObservedAt: r.source_observed_at,
+        counts: r.counts,
+        assessments: r.assessments,
+      };
+    });
+  }
+  async putBaseline(b: AuditBaseline) {
+    await this.scoped(async (tx) => {
+      await tx`INSERT INTO audit_baselines (project_id, id, name, note, created_at, created_by, policy_version, engine_version, source_observed_at, counts, assessments)
+        VALUES (${this.projectId}, ${b.id}, ${b.name}, ${b.note ?? null}, ${b.createdAt}, ${b.createdBy}, ${b.policyVersion}, ${b.engineVersion}, ${this.j(b.sourceObservedAt)}, ${this.j(b.counts)}, ${this.j(b.assessments)})
+        ON CONFLICT (project_id, id) DO UPDATE SET name = EXCLUDED.name, note = EXCLUDED.note, assessments = EXCLUDED.assessments, counts = EXCLUDED.counts`;
+    });
+  }
+  async deleteBaseline(id: string) {
+    await this.scoped(async (tx) => {
+      await tx`DELETE FROM audit_baselines WHERE project_id = ${this.projectId} AND id = ${id}`;
+    });
+  }
 }
 
 export class PostgresStore implements Store {
@@ -640,7 +712,7 @@ export class PostgresStore implements Store {
     const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../sql');
     await this.sql.begin(async (tx) => {
       await tx`SELECT pg_advisory_xact_lock(727272)`;
-      for (const f of ['001_init.sql', '002_tenancy.sql', '003_jobs.sql', '004_ai.sql'])
+      for (const f of ['001_init.sql', '002_tenancy.sql', '003_jobs.sql', '004_ai.sql', '005_audit.sql'])
         await tx.unsafe(readFileSync(path.join(dir, f), 'utf8'));
     });
   }

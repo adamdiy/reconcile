@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { JsonFileStore, seedFromFixtures } from '@reconcile/store';
 import { loadFixtures } from '@reconcile/fixtures';
-import { evaluateProject } from '../src/index.js';
+import type { AccountAssessment } from '@reconcile/domain';
+import { evaluateProject, diffAssessments } from '../src/index.js';
 
 async function seeded() {
   const dir = mkdtempSync(path.join(tmpdir(), 'reconcile-core-'));
@@ -59,5 +60,61 @@ describe('evaluateProject', () => {
     const second = await evaluateProject(store, 'default', opts);
     const again = second.stored[fp]!;
     expect(again.workflow?.assignee).toBe('tester@local');
+  });
+});
+
+describe('diffAssessments', () => {
+  const base = (features: AccountAssessment['features'], quantityChecks: AccountAssessment['quantityChecks'] = []): AccountAssessment => ({
+    accountId: 'acct_1',
+    policyVersion: 'v1',
+    engineVersion: 'e1',
+    evaluatedAt: '2026-09-17T00:00:00Z',
+    accountReasons: [],
+    features,
+    integrity: [],
+    quantityChecks,
+  });
+
+  it('classifies every transition kind', () => {
+    const mk = (kind: 'match' | 'mismatch' | 'unknown', feature: string) =>
+      kind === 'unknown'
+        ? ({ kind, feature, reasons: ['stale_evidence'], evidenceIds: [] } as const)
+        : kind === 'match'
+          ? ({ kind, feature, ruleId: 'r', expected: true, evidenceIds: [] } as const)
+          : ({ kind, feature, ruleId: 'r', expected: true, observed: false, evidenceIds: [] } as const);
+    const before = base([
+      mk('match', 'to_regress'),
+      mk('mismatch', 'to_fix'),
+      mk('match', 'to_unknown'),
+      mk('unknown', 'to_assessed'),
+      mk('match', 'to_remove'),
+      mk('match', 'stay_same'),
+    ]);
+    const after = base([
+      mk('mismatch', 'to_regress'),
+      mk('match', 'to_fix'),
+      mk('unknown', 'to_unknown'),
+      mk('match', 'to_assessed'),
+      mk('match', 'stay_same'),
+      mk('match', 'newly_added'),
+    ]);
+    const d = diffAssessments([before], [after]);
+    expect(d.regressions.map((p) => p.feature)).toEqual(['to_regress']);
+    expect(d.fixes.map((p) => p.feature)).toEqual(['to_fix']);
+    expect(d.newUnknowns.map((p) => p.feature)).toEqual(['to_unknown']);
+    expect(d.newlyAssessed.map((p) => p.feature)).toEqual(['to_assessed']);
+    expect(d.removed.map((p) => p.feature)).toEqual(['to_remove']);
+    expect(d.added.map((p) => p.feature)).toEqual(['newly_added']);
+    expect(d.unchanged).toBe(1);
+  });
+
+  it('includes integrity findings and quantity checks in the same shape', () => {
+    const a1 = {
+      ...base([]),
+      integrity: [{ kind: 'duplicate_local_identity' as const, localRecordIds: ['lr1', 'lr2'], stripeSubscriptionId: 'sub_1', evidenceIds: [] }],
+      quantityChecks: [{ kind: 'mismatch' as const, check: 'seats' as const, expected: 5, observed: 7, evidenceIds: [] }],
+    };
+    const d = diffAssessments([a1], [base([])]);
+    expect(d.removed.map((p) => p.feature).sort()).toEqual(['integrity:duplicate_local_identity', 'seats']);
   });
 });

@@ -12,6 +12,8 @@ import { reconcileIncidents } from './incidents.js';
 
 export { reconcileIncidents, checkFor } from './incidents.js';
 export type { ReconcileContext } from './incidents.js';
+export { diffAssessments } from './diff.js';
+export type { AssessmentDiff, DiffPair } from './diff.js';
 
 function lifecycleFor(
   sources: SourceSnapshot,
@@ -61,6 +63,8 @@ export interface EvaluateOptions {
   fallback: { stripe: SourceSnapshot['stripe']; app: SourceSnapshot['app']; policy: Policy };
   settlingMs: number;
   evaluatedAt?: string;
+  /** Preview overrides: evaluate a draft policy/exception set without publishing. */
+  overrides?: { policy?: Policy; exceptions?: PolicyException[] };
 }
 
 /**
@@ -83,9 +87,9 @@ export async function evaluateProject(
     origins: { stripe: 'fixtures' as const, app: 'fixtures' as const },
   };
   const publishedPolicy = await ps.getPublishedPolicy();
-  const policy = publishedPolicy?.policy ?? opts.fallback.policy;
+  const policy = opts.overrides?.policy ?? publishedPolicy?.policy ?? opts.fallback.policy;
   const links = await ps.listLinks();
-  const exceptions = await ps.listExceptions();
+  const exceptions = opts.overrides?.exceptions ?? (await ps.listExceptions());
   const prevIncidents = await ps.getIncidents();
 
   const assessments = evaluate({
@@ -126,12 +130,18 @@ export async function evaluateProject(
   let coveredPairs = 0;
   let totalPairs = 0;
   const unknownReasons: Record<string, number> = {};
-  for (const a of assessments)
+  for (const a of assessments) {
     for (const f of a.features) {
       totalPairs += 1;
       if (f.kind !== 'unknown') coveredPairs += 1;
       else for (const r of f.reasons) unknownReasons[r] = (unknownReasons[r] ?? 0) + 1;
     }
+    for (const q of a.quantityChecks ?? []) {
+      totalPairs += 1;
+      if (q.kind !== 'unknown') coveredPairs += 1;
+      else for (const r of q.reasons) unknownReasons[r] = (unknownReasons[r] ?? 0) + 1;
+    }
+  }
   const nextTransitionAt = assessments
     .map((a) => a.nextTransitionAt)
     .filter((t): t is string => Boolean(t))

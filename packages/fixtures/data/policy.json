@@ -1,12 +1,61 @@
 {
   "version": "v1-2026-09-16",
   "ruleIdPrefix": "plan",
-  "capabilities": ["reports", "exports", "priority_support"],
-  "priceMappings": [
-    { "ruleId": "plan:pro", "priceId": "price_pro", "capabilities": ["reports", "exports", "priority_support"] },
-    { "ruleId": "plan:basic", "priceId": "price_basic", "capabilities": ["reports"] },
-    { "ruleId": "plan:free", "priceId": "price_free", "capabilities": ["reports"] }
+  "capabilities": [
+    "reports",
+    "exports",
+    "priority_support"
   ],
-  "lifecycle": { "pastDueGraceHours": 720, "trialGrantsAccess": true },
-  "freshness": { "maxEvidenceAgeMinutes": 2880 }
+  "priceMappings": [
+    {
+      "ruleId": "plan:pro",
+      "priceId": "price_pro",
+      "capabilities": [
+        "reports",
+        "exports",
+        "priority_support"
+      ]
+    },
+    {
+      "ruleId": "plan:basic",
+      "priceId": "price_basic",
+      "capabilities": [
+        "reports"
+      ]
+    },
+    {
+      "ruleId": "plan:free",
+      "priceId": "price_free",
+      "capabilities": [
+        "reports"
+      ]
+    },
+    {
+      "ruleId": "plan:team",
+      "priceId": "price_team_seat",
+      "capabilities": [
+        "reports",
+        "exports"
+      ]
+    }
+  ],
+  "lifecycle": {
+    "pastDueGraceHours": 720,
+    "trialGrantsAccess": true
+  },
+  "freshness": {
+    "maxEvidenceAgeMinutes": 2880
+  },
+  "seats": {
+    "priceIds": [
+      "price_team_seat"
+    ]
+  },
+  "usage": [
+    {
+      "metric": "api_calls",
+      "priceId": "price_api_calls",
+      "tolerancePct": 5
+    }
+  ]
 }

@@ -15,9 +15,9 @@ Timestamps are absolute ISO instants in August–September 2026; the web app pas
 | acct_005 / cus_005 | Active `price_pro` scheduled to cancel 2026-10-10; `exports` observed false — expected feature missing; `ex_002` is expired and does not apply |
 | acct_006 / cus_006 | Active sub but app observation is stale (2026-08-25) — `stale_evidence` |
 | acct_007 / cus_007 | Collector reports `cus_007` but no reviewed link — `unmapped_identity` coverage gap |
-| acct_008 / cus_008 | Two `localBillingRecords` share `sub_008` — `duplicate_local_identity` integrity finding |
-| acct_009 / cus_009 | Multi-item subscription (`price_pro` + unmapped `price_addon`) — supported; Pro capabilities assessed as match since the unmapped item grants no extra capabilities |
-| acct_010 / cus_010 | Billing-only: reviewed link + active sub, but account absent from the complete app inventory — expected/observed mismatch (expected missing) |
+| acct_008 / cus_008 | Team plan: seat price `price_team_seat` qty 5, `seatsUsed` 7 — `seats_over_cap` (plus a `duplicate_local_identity` integrity finding on `sub_008`) |
+| acct_009 / cus_009 | Multi-item (`price_pro` + unmapped `price_addon` + metered `price_api_calls`); app usage 12,000 vs Stripe records 9,000 (tolerance 5%) — `usage_not_billed` |
+| acct_010 / cus_010 | Metered `price_api_calls` only; app usage present but Stripe has no usage records — usage check unknown `not_observed`; capabilities unknown `unsupported_policy` |
 | acct_011 / cus_011 | Zero-value (`price_free`, 100% coupon) account — matches, `zero_value` flagged in evidence |
 | acct_012 / cus_012 | `paused` subscription grants no access but access is still enabled — `unexpected_feature_enabled` mismatch |
 

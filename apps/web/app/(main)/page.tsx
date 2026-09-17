@@ -108,6 +108,43 @@ export default async function OverviewPage() {
         ))}
       </div>
 
+      {snap.assessments.some((a) => a.quantityChecks.length > 0) && (
+        <div className="mb-6 rounded border p-4">
+          <h2 className="mb-2 font-medium">Seats & usage</h2>
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b text-left text-gray-500">
+                <th className="py-1 pr-3">account</th>
+                <th className="py-1 pr-3">check</th>
+                <th className="py-1 pr-3">expected</th>
+                <th className="py-1 pr-3">observed</th>
+                <th className="py-1 pr-3">result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {snap.assessments.flatMap((a) =>
+                a.quantityChecks.map((q, i) => (
+                  <tr key={`${a.accountId}-${i}`} className="border-b">
+                    <td className="py-1 pr-3 font-mono text-xs">{a.accountId}</td>
+                    <td className="py-1 pr-3 font-mono text-xs">
+                      {q.check === 'seats' ? 'seats' : `usage:${q.metric}`}
+                    </td>
+                    <td className="py-1 pr-3 font-mono">{q.expected}</td>
+                    <td className="py-1 pr-3 font-mono">{q.observed ?? '—'}</td>
+                    <td className={`py-1 pr-3 ${q.kind === 'mismatch' ? 'text-red-600' : q.kind === 'unknown' ? 'text-amber-700' : ''}`}>
+                      {q.kind}
+                      {q.kind === 'unknown' && 'reasons' in q && (
+                        <span className="text-xs text-gray-500"> ({q.reasons.join(',')})</span>
+                      )}
+                    </td>
+                  </tr>
+                )),
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       <div className="mb-6 text-sm">
         <div>
           Feature coverage: <strong>{covered}</strong> of <strong>{covered + uncovered}</strong>{' '}

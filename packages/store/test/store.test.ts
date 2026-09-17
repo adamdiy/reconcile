@@ -229,3 +229,49 @@ describe.skipIf(!pgUrl)('PostgresStore', () => {
     await s.close();
   });
 });
+
+describe('audit baselines', () => {
+  const baseline = {
+    id: 'bl_1',
+    name: 'pre-migration',
+    createdAt: '2026-09-17T00:00:00Z',
+    createdBy: 'tester',
+    policyVersion: 'v1',
+    engineVersion: '0.3.0',
+    sourceObservedAt: { stripe: '2026-09-16T18:00:00Z', app: '2026-09-16T18:30:00Z' },
+    assessments: [
+      {
+        accountId: 'acct_1',
+        policyVersion: 'v1',
+        engineVersion: '0.3.0',
+        evaluatedAt: '2026-09-17T00:00:00Z',
+        accountReasons: [],
+        features: [{ kind: 'match' as const, ruleId: 'r', feature: 'reports', expected: true, evidenceIds: [] }],
+        integrity: [],
+        quantityChecks: [],
+      },
+    ],
+    counts: { population: 1, buckets: [0, 0, 0, 1] as [number, number, number, number], coveredPairs: 1, totalPairs: 1, incidentsOpen: 0 },
+  };
+
+  for (const [name, make] of [
+    ['JSON', async () => new JsonFileStore(mkdtempSync(path.join(tmpdir(), 'reconcile-bl-')))] as const,
+    ...(process.env.DATABASE_URL
+      ? [['Postgres', async () => { const s = new PostgresStore(process.env.DATABASE_URL!); await s.migrate(); return s; }] as const]
+      : []),
+  ]) {
+    it(`${name}: baseline round-trip`, async () => {
+      const store = await make();
+      const ps = store.forProject('proj_test');
+      await ps.putBaseline(baseline);
+      const list = await ps.listBaselines();
+      expect(list).toHaveLength(1);
+      expect(list[0]).not.toHaveProperty('assessments');
+      const full = await ps.getBaseline('bl_1');
+      expect(full!.assessments[0].accountId).toBe('acct_1');
+      await ps.deleteBaseline('bl_1');
+      expect(await ps.getBaseline('bl_1')).toBeNull();
+      await store.close();
+    });
+  }
+});
