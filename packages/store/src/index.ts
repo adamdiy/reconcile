@@ -270,7 +270,7 @@ class PostgresProjectStore implements ProjectStore {
 
   async getSources() {
     return this.scoped(async (tx) => {
-      const rows = await tx`SELECT payload FROM sources WHERE id = 1`;
+      const rows = await tx`SELECT payload FROM sources WHERE project_id = ${this.projectId} AND id = 1`;
       return (rows[0]?.payload as SourceSnapshot) ?? null;
     });
   }
@@ -284,7 +284,7 @@ class PostgresProjectStore implements ProjectStore {
   async listPolicyVersions() {
     return this.scoped(async (tx) => {
       const rows = await tx`SELECT version, published_at, published_by, note, payload
-        FROM policy_versions ORDER BY published_at DESC`;
+        FROM policy_versions WHERE project_id = ${this.projectId} ORDER BY published_at DESC`;
       return rows.map(
         (r) =>
           ({
@@ -311,7 +311,7 @@ class PostgresProjectStore implements ProjectStore {
   }
   async getPolicyDraft() {
     return this.scoped(async (tx) => {
-      const rows = await tx`SELECT payload FROM policy_draft WHERE id = 1`;
+      const rows = await tx`SELECT payload FROM policy_draft WHERE project_id = ${this.projectId} AND id = 1`;
       return (rows[0]?.payload as PolicyDraft) ?? null;
     });
   }
@@ -323,13 +323,13 @@ class PostgresProjectStore implements ProjectStore {
   }
   async clearPolicyDraft() {
     await this.scoped(async (tx) => {
-      await tx`DELETE FROM policy_draft WHERE id = 1`;
+      await tx`DELETE FROM policy_draft WHERE project_id = ${this.projectId} AND id = 1`;
     });
   }
 
   async listExceptions() {
     return this.scoped(async (tx) => {
-      const rows = await tx`SELECT payload FROM exceptions ORDER BY id`;
+      const rows = await tx`SELECT payload FROM exceptions WHERE project_id = ${this.projectId} ORDER BY id`;
       return rows.map((r) => r.payload as PolicyException);
     });
   }
@@ -341,13 +341,13 @@ class PostgresProjectStore implements ProjectStore {
   }
   async deleteException(id: string) {
     await this.scoped(async (tx) => {
-      await tx`DELETE FROM exceptions WHERE id = ${id}`;
+      await tx`DELETE FROM exceptions WHERE project_id = ${this.projectId} AND id = ${id}`;
     });
   }
 
   async listLinks() {
     return this.scoped(async (tx) => {
-      const rows = await tx`SELECT account_id, stripe_customer_id, reviewed FROM identity_links ORDER BY account_id`;
+      const rows = await tx`SELECT account_id, stripe_customer_id, reviewed FROM identity_links WHERE project_id = ${this.projectId} ORDER BY account_id`;
       return rows.map((r) => ({
         accountId: r.account_id,
         stripeCustomerId: r.stripe_customer_id,
@@ -364,13 +364,13 @@ class PostgresProjectStore implements ProjectStore {
   }
   async deleteLink(accountId: string) {
     await this.scoped(async (tx) => {
-      await tx`DELETE FROM identity_links WHERE account_id = ${accountId}`;
+      await tx`DELETE FROM identity_links WHERE project_id = ${this.projectId} AND account_id = ${accountId}`;
     });
   }
 
   async getIncidents() {
     return this.scoped(async (tx) => {
-      const rows = await tx`SELECT fingerprint, payload FROM incidents`;
+      const rows = await tx`SELECT fingerprint, payload FROM incidents WHERE project_id = ${this.projectId}`;
       const out: Record<string, StoredIncident> = {};
       for (const r of rows) out[r.fingerprint] = r.payload as StoredIncident;
       return out;
@@ -383,7 +383,7 @@ class PostgresProjectStore implements ProjectStore {
       payload: inc,
     }));
     await this.scoped(async (tx) => {
-      await tx`DELETE FROM incidents`;
+      await tx`DELETE FROM incidents WHERE project_id = ${this.projectId}`;
       if (rows.length > 0) {
         await tx`INSERT INTO incidents (project_id, fingerprint, payload)
           SELECT * FROM jsonb_to_recordset(${tx.json(rows)}::jsonb)
@@ -395,13 +395,13 @@ class PostgresProjectStore implements ProjectStore {
     await this.scoped(async (tx) => {
       await tx`INSERT INTO runs (project_id, id, evaluated_at, payload) VALUES (${this.projectId}, ${r.id}, ${r.evaluatedAt}, ${this.j(r)})
         ON CONFLICT (project_id, id) DO UPDATE SET evaluated_at = EXCLUDED.evaluated_at, payload = EXCLUDED.payload`;
-      await tx`DELETE FROM runs WHERE id NOT IN (
-        SELECT id FROM runs ORDER BY evaluated_at DESC LIMIT ${MAX_RUNS})`;
+      await tx`DELETE FROM runs WHERE project_id = ${this.projectId} AND id NOT IN (
+        SELECT id FROM runs WHERE project_id = ${this.projectId} ORDER BY evaluated_at DESC LIMIT ${MAX_RUNS})`;
     });
   }
   async listRuns(limit = 50) {
     return this.scoped(async (tx) => {
-      const rows = await tx`SELECT payload FROM runs ORDER BY evaluated_at DESC LIMIT ${limit}`;
+      const rows = await tx`SELECT payload FROM runs WHERE project_id = ${this.projectId} ORDER BY evaluated_at DESC LIMIT ${limit}`;
       return rows.map((r) => r.payload as AssessmentRun);
     });
   }
