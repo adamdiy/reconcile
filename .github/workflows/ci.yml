@@ -17,6 +17,9 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: test -z "$(git ls-files 'packages/*/src/*.js' 'packages/*/src/*.d.ts' 'packages/*/src/*.map')"
+        name: no committed build artifacts
+      - run: pnpm -r --filter './packages/*' build
+        name: build packages (types needed by dependents)
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
