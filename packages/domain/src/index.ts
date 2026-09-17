@@ -190,3 +190,58 @@ export const EvaluationInputSchema = z.object({
   engineVersion: z.string().optional(),
 });
 export type EvaluationInput = z.infer<typeof EvaluationInputSchema>;
+
+export const SeveritySchema = z.enum(['low', 'medium', 'high']);
+export type Severity = z.infer<typeof SeveritySchema>;
+
+export const CheckKindSchema = z.enum([
+  'unexpected_feature_enabled',
+  'expected_feature_missing',
+  'wrong_feature_set',
+  'duplicate_local_identity',
+  'coverage_gap',
+  'monitoring_health',
+]);
+export type CheckKind = z.infer<typeof CheckKindSchema>;
+
+export const IncidentKindSchema = z.enum(['mismatch', 'integrity', 'coverage', 'health']);
+export type IncidentKind = z.infer<typeof IncidentKindSchema>;
+
+export const IncidentStateSchema = z.enum(['candidate', 'confirmed', 'resolved']);
+export type IncidentState = z.infer<typeof IncidentStateSchema>;
+
+export const IncidentSnapshotSchema = z.object({
+  accountId: z.string(),
+  ruleId: z.string(),
+  feature: z.string(),
+  check: CheckKindSchema,
+  kind: IncidentKindSchema,
+  severity: SeveritySchema,
+  expected: z.boolean().optional(),
+  observed: z.boolean().optional(),
+  reasons: z.array(z.string()).optional(),
+  evidenceIds: z.array(z.string()),
+});
+export type IncidentSnapshot = z.infer<typeof IncidentSnapshotSchema>;
+
+export const StoredIncidentSchema = z.object({
+  firstSeenAt: IsoInstant,
+  lastConfirmedAt: IsoInstant,
+  occurrences: z.number(),
+  state: IncidentStateSchema,
+  resolutionReason: z.string().optional(),
+  evidenceStale: z.boolean().optional(),
+  snapshot: IncidentSnapshotSchema,
+});
+export type StoredIncident = z.infer<typeof StoredIncidentSchema>;
+
+export const IncidentSchema = IncidentSnapshotSchema.extend({
+  id: z.string(),
+  state: IncidentStateSchema,
+  firstSeenAt: IsoInstant,
+  lastConfirmedAt: IsoInstant,
+  occurrences: z.number(),
+  resolutionReason: z.string().optional(),
+  evidenceStale: z.boolean().optional(),
+});
+export type Incident = z.infer<typeof IncidentSchema>;
