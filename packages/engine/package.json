@@ -1,0 +1,25 @@
+{
+  "name": "@reconcile/engine",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@reconcile/domain": "workspace:*"
+  },
+  "devDependencies": {
+    "fast-check": "3.23.2",
+    "typescript": "5.9.2",
+    "vitest": "3.2.4"
+  }
+}
