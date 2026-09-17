@@ -31,7 +31,11 @@ pnpm typecheck && pnpm lint
 
 ## Demo script
 
-1. `pnpm dev`, open http://localhost:3000 — banner marks sources as simulated.
+1. `pnpm dev`, open http://localhost:3000 — sign in as `admin@local` / `reconcile`
+   (seeded admin; password override via `RECONCILE_ADMIN_PASSWORD`). The banner
+   marks sources as simulated. Roles: `viewer` (read-only), `reviewer`
+   (identity links, exceptions, incident workflow, recheck), `admin`
+   (publish policy, manage users/projects).
 2. Overview shows the four disjoint buckets, coverage counts, detection envelope.
 3. `/incidents` lists mismatches (e.g. `acct_004` unexpected access, `acct_005`
    expected feature missing, `acct_008` duplicate local identity, `acct_010`
@@ -43,10 +47,12 @@ pnpm typecheck && pnpm lint
    such). "Confirm" upserts the suggestion into the policy draft (`/setup/policy`),
    which only affects results once published.
 6. Recheck demo: set `access` to `false` for `acct_004` in
-   `packages/fixtures/data/app.json` (or to match expectation), click Recheck on
-   the overview or the incident detail — the incident resolves with reason
-   `verified_remediated`. Restore the fixture and Recheck again to reopen it as
-   a candidate (confirmed after `SETTLING_MINUTES`, default 0 for the demo).
+   `packages/fixtures/data/app.json` (or to match expectation), click
+   **Import fixtures** (the simulated collector) then **Recheck** — the incident
+   resolves with reason `verified_remediated`. Restore the fixture, Import
+   fixtures and Recheck again to reopen it as a candidate (confirmed after
+   `SETTLING_MINUTES`, default 0 for the demo). Recheck re-evaluates the stored
+   sources; only Import fixtures reloads fixture files.
 
 ## Optional: Postgres
 
@@ -62,6 +68,20 @@ DATABASE_URL=postgres://reconcile:reconcile@localhost:5432/reconcile pnpm dev
 `seedFromFixtures` only seeds empty collections, so your published policies,
 links, exceptions and imported sources survive restarts in either backend.
 
+## Optional: real source connectors
+
+Two CLIs can push real inventories into the store via `POST /api/ingest/*`
+(see `docs/connectors.md`):
+
+- `reconcile-stripe-sync` (`@reconcile/connectors`) — collects customers and
+  subscriptions from the Stripe API when `STRIPE_SECRET_KEY` is set (use a
+  test-mode key), or replays the fixtures otherwise.
+- `reconcile-collect` (`@reconcile/collector`) — builds an `AppInventory` from
+  a Postgres query, a JSON export, or an HTTP endpoint, per a `--config` file.
+
+Ingested sources are marked `connector` on the overview; assessments then run
+on live data instead of fixtures.
+
 ## Environment
 
 | Variable | Default | Purpose |
@@ -71,3 +91,9 @@ links, exceptions and imported sources survive restarts in either backend.
 | `RECONCILE_STATE_DIR` | `apps/web/.reconcile` | JSON store directory |
 | `OPENAI_API_KEY` / `OPENAI_BASE_URL` | unset | Enable the OpenAI-compatible mapping suggester |
 | `ANTHROPIC_API_KEY` | unset | Enable the Anthropic mapping suggester |
+| `RECONCILE_INGEST_TOKEN` | unset | Bearer token required on `/api/ingest/*`; when unset, only localhost is accepted (with a warning) |
+| `STRIPE_SECRET_KEY` | unset | `reconcile-stripe-sync`: collect via the Stripe API instead of fixtures |
+| `RECONCILE_URL` | `http://localhost:3000` | Base URL the CLIs post inventories to |
+| `APP_DATABASE_URL` | unset | Referenced by collector configs as `env:APP_DATABASE_URL` |
+| `RECONCILE_SESSION_SECRET` | dev default | HMAC key for session cookies — set in any shared deployment |
+| `RECONCILE_ADMIN_PASSWORD` | `reconcile` | Password for the seeded `admin@local` user |

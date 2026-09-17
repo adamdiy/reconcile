@@ -5,86 +5,232 @@
   "accounts": [
     {
       "accountId": "acct_001",
-      "stripeCustomerIds": ["cus_001"],
-      "localBillingRecords": [{ "localId": "lr_001", "stripeSubscriptionId": "sub_001", "stripeCustomerId": "cus_001", "status": "active" }],
-      "observedAt": "2026-09-16T18:30:00Z",
-      "method": "database_view",
-      "access": { "reports": true, "exports": true, "priority_support": true }
-    },
-    {
-      "accountId": "acct_002",
-      "stripeCustomerIds": ["cus_002"],
-      "localBillingRecords": [{ "localId": "lr_002", "stripeSubscriptionId": "sub_002", "stripeCustomerId": "cus_002" }],
-      "observedAt": "2026-09-16T18:30:00Z",
-      "method": "database_view",
-      "access": { "reports": true, "exports": true, "priority_support": true }
-    },
-    {
-      "accountId": "acct_003",
-      "stripeCustomerIds": ["cus_003"],
-      "localBillingRecords": [{ "localId": "lr_003", "stripeSubscriptionId": "sub_003", "stripeCustomerId": "cus_003", "status": "past_due" }],
-      "observedAt": "2026-09-16T18:30:00Z",
-      "method": "database_view",
-      "access": { "reports": true, "exports": true, "priority_support": false }
-    },
-    {
-      "accountId": "acct_004",
-      "stripeCustomerIds": ["cus_004"],
-      "localBillingRecords": [{ "localId": "lr_004", "stripeSubscriptionId": "sub_004", "stripeCustomerId": "cus_004", "status": "past_due" }],
-      "observedAt": "2026-09-16T18:30:00Z",
-      "method": "database_view",
-      "access": { "reports": true, "exports": true, "priority_support": true }
-    },
-    {
-      "accountId": "acct_005",
-      "stripeCustomerIds": ["cus_005"],
-      "localBillingRecords": [{ "localId": "lr_005", "stripeSubscriptionId": "sub_005", "stripeCustomerId": "cus_005", "status": "active" }],
-      "observedAt": "2026-09-16T18:30:00Z",
-      "method": "database_view",
-      "access": { "reports": true, "exports": false, "priority_support": true }
-    },
-    {
-      "accountId": "acct_006",
-      "stripeCustomerIds": ["cus_006"],
-      "localBillingRecords": [{ "localId": "lr_006", "stripeSubscriptionId": "sub_006", "stripeCustomerId": "cus_006" }],
-      "observedAt": "2026-08-25T18:30:00Z",
-      "method": "database_view",
-      "access": { "reports": true, "exports": true, "priority_support": true }
-    },
-    {
-      "accountId": "acct_007",
-      "stripeCustomerIds": ["cus_007"],
-      "localBillingRecords": [{ "localId": "lr_007", "stripeSubscriptionId": "sub_007", "stripeCustomerId": "cus_007" }],
-      "observedAt": "2026-09-16T18:30:00Z",
-      "method": "database_view",
-      "access": { "reports": true, "exports": true, "priority_support": true }
-    },
-    {
-      "accountId": "acct_008",
-      "stripeCustomerIds": ["cus_008"],
+      "stripeCustomerIds": [
+        "cus_001"
+      ],
       "localBillingRecords": [
-        { "localId": "lr_008a", "stripeSubscriptionId": "sub_008", "stripeCustomerId": "cus_008" },
-        { "localId": "lr_008b", "stripeSubscriptionId": "sub_008", "stripeCustomerId": "cus_008" }
+        {
+          "localId": "lr_001",
+          "stripeSubscriptionId": "sub_001",
+          "stripeCustomerId": "cus_001",
+          "status": "active"
+        }
       ],
       "observedAt": "2026-09-16T18:30:00Z",
       "method": "database_view",
-      "access": { "reports": true, "exports": false, "priority_support": false }
+      "access": {
+        "reports": true,
+        "exports": true,
+        "priority_support": true
+      }
+    },
+    {
+      "accountId": "acct_002",
+      "stripeCustomerIds": [
+        "cus_002"
+      ],
+      "localBillingRecords": [
+        {
+          "localId": "lr_002",
+          "stripeSubscriptionId": "sub_002",
+          "stripeCustomerId": "cus_002"
+        }
+      ],
+      "observedAt": "2026-09-16T18:30:00Z",
+      "method": "database_view",
+      "access": {
+        "reports": true,
+        "exports": true,
+        "priority_support": true
+      }
+    },
+    {
+      "accountId": "acct_003",
+      "stripeCustomerIds": [
+        "cus_003"
+      ],
+      "localBillingRecords": [
+        {
+          "localId": "lr_003",
+          "stripeSubscriptionId": "sub_003",
+          "stripeCustomerId": "cus_003",
+          "status": "past_due"
+        }
+      ],
+      "observedAt": "2026-09-16T18:30:00Z",
+      "method": "database_view",
+      "access": {
+        "reports": true,
+        "exports": true,
+        "priority_support": false
+      }
+    },
+    {
+      "accountId": "acct_004",
+      "stripeCustomerIds": [
+        "cus_004"
+      ],
+      "localBillingRecords": [
+        {
+          "localId": "lr_004",
+          "stripeSubscriptionId": "sub_004",
+          "stripeCustomerId": "cus_004",
+          "status": "past_due"
+        }
+      ],
+      "observedAt": "2026-09-16T18:30:00Z",
+      "method": "database_view",
+      "access": {
+        "reports": true,
+        "exports": true,
+        "priority_support": true
+      }
+    },
+    {
+      "accountId": "acct_005",
+      "stripeCustomerIds": [
+        "cus_005"
+      ],
+      "localBillingRecords": [
+        {
+          "localId": "lr_005",
+          "stripeSubscriptionId": "sub_005",
+          "stripeCustomerId": "cus_005",
+          "status": "active"
+        }
+      ],
+      "observedAt": "2026-09-16T18:30:00Z",
+      "method": "database_view",
+      "access": {
+        "reports": true,
+        "exports": false,
+        "priority_support": true
+      }
+    },
+    {
+      "accountId": "acct_006",
+      "stripeCustomerIds": [
+        "cus_006"
+      ],
+      "localBillingRecords": [
+        {
+          "localId": "lr_006",
+          "stripeSubscriptionId": "sub_006",
+          "stripeCustomerId": "cus_006"
+        }
+      ],
+      "observedAt": "2026-08-25T18:30:00Z",
+      "method": "database_view",
+      "access": {
+        "reports": true,
+        "exports": true,
+        "priority_support": true
+      }
+    },
+    {
+      "accountId": "acct_007",
+      "stripeCustomerIds": [
+        "cus_007"
+      ],
+      "localBillingRecords": [
+        {
+          "localId": "lr_007",
+          "stripeSubscriptionId": "sub_007",
+          "stripeCustomerId": "cus_007"
+        }
+      ],
+      "observedAt": "2026-09-16T18:30:00Z",
+      "method": "database_view",
+      "access": {
+        "reports": true,
+        "exports": true,
+        "priority_support": true
+      }
+    },
+    {
+      "accountId": "acct_008",
+      "stripeCustomerIds": [
+        "cus_008"
+      ],
+      "localBillingRecords": [
+        {
+          "localId": "lr_008a",
+          "stripeSubscriptionId": "sub_008",
+          "stripeCustomerId": "cus_008"
+        },
+        {
+          "localId": "lr_008b",
+          "stripeSubscriptionId": "sub_008",
+          "stripeCustomerId": "cus_008"
+        }
+      ],
+      "observedAt": "2026-09-16T18:30:00Z",
+      "method": "database_view",
+      "access": {
+        "reports": true,
+        "exports": false,
+        "priority_support": false
+      }
     },
     {
       "accountId": "acct_009",
-      "stripeCustomerIds": ["cus_009"],
-      "localBillingRecords": [{ "localId": "lr_009", "stripeSubscriptionId": "sub_009", "stripeCustomerId": "cus_009" }],
+      "stripeCustomerIds": [
+        "cus_009"
+      ],
+      "localBillingRecords": [
+        {
+          "localId": "lr_009",
+          "stripeSubscriptionId": "sub_009",
+          "stripeCustomerId": "cus_009"
+        }
+      ],
       "observedAt": "2026-09-16T18:30:00Z",
       "method": "database_view",
-      "access": { "reports": true, "exports": true, "priority_support": true }
+      "access": {
+        "reports": true,
+        "exports": true,
+        "priority_support": true
+      }
     },
     {
       "accountId": "acct_011",
-      "stripeCustomerIds": ["cus_011"],
-      "localBillingRecords": [{ "localId": "lr_011", "stripeSubscriptionId": "sub_011", "stripeCustomerId": "cus_011" }],
+      "stripeCustomerIds": [
+        "cus_011"
+      ],
+      "localBillingRecords": [
+        {
+          "localId": "lr_011",
+          "stripeSubscriptionId": "sub_011",
+          "stripeCustomerId": "cus_011"
+        }
+      ],
       "observedAt": "2026-09-16T18:30:00Z",
       "method": "database_view",
-      "access": { "reports": true, "exports": false, "priority_support": false }
+      "access": {
+        "reports": true,
+        "exports": false,
+        "priority_support": false
+      }
+    },
+    {
+      "accountId": "acct_012",
+      "stripeCustomerIds": [
+        "cus_012"
+      ],
+      "localBillingRecords": [
+        {
+          "localId": "lr_012",
+          "stripeSubscriptionId": "sub_012",
+          "stripeCustomerId": "cus_012"
+        }
+      ],
+      "observedAt": "2026-09-16T18:30:00Z",
+      "method": "database_view",
+      "access": {
+        "reports": true,
+        "exports": true,
+        "priority_support": false
+      }
     }
   ]
 }

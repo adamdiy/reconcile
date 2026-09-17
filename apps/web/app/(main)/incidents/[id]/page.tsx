@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { runAssessment, settlingMinutes } from '../../../../lib/state';
 import { coverageIncidents } from '../../../../lib/coverage';
 import { RecheckButton } from '../../../../components/RecheckButton';
+import { WorkflowPanel } from '../../../../components/WorkflowPanel';
+import { getSession } from '../../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +22,7 @@ export default async function IncidentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const session = await getSession();
   const snap = await runAssessment();
   const incidents = [...snap.incidents, ...coverageIncidents(snap.assessments)];
   const inc = incidents.find((i) => i.id === id);
@@ -166,6 +169,8 @@ export default async function IncidentDetailPage({
         </section>
       )}
 
+      <WorkflowPanel id={inc.id} workflow={inc.workflow} role={session?.role ?? 'viewer'} />
+
       <section className="mt-4 rounded border p-4">
         <h2 className="mb-2 font-medium">Possible causes (hypotheses, not verified)</h2>
         <ul className="list-inside list-disc text-sm text-gray-700">
@@ -176,7 +181,7 @@ export default async function IncidentDetailPage({
       </section>
 
       <div className="mt-4">
-        <RecheckButton />
+        {(session?.role === 'reviewer' || session?.role === 'admin') && <RecheckButton />}
       </div>
     </main>
   );

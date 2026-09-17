@@ -8,6 +8,7 @@ import {
 } from '@reconcile/store';
 import type { AssessmentRun, PolicyVersion, SourceSnapshot, Store } from '@reconcile/store';
 import { reconcileIncidents } from './incidents';
+import { getSession } from './auth';
 import type { Incident, IncidentState, StoredIncident } from './incidents';
 
 export type { Incident, IncidentState, StoredIncident };
@@ -28,6 +29,18 @@ export async function withStore<T>(fn: (store: Store) => Promise<T>): Promise<T>
   }
 }
 
+import type { ProjectStore } from '@reconcile/store';
+
+export async function withProject<T>(
+  projectId: string,
+  fn: (store: Store, ps: ProjectStore) => Promise<T>,
+): Promise<T> {
+  return withStore(async (store) => {
+    await seedFromFixtures(store, loadFixtures());
+    return fn(store, store.forProject(projectId));
+  });
+}
+
 function lifecycleFor(
   sources: SourceSnapshot,
   links: { accountId: string; stripeCustomerId: string }[],
@@ -40,6 +53,7 @@ function lifecycleFor(
   const now = Date.parse(assessment.evaluatedAt);
   let result: 'active_or_trialing' | 'grace' | 'other' = 'other';
   for (const sub of sources.stripe.subscriptions.filter((s) => customerIds.includes(s.customerId))) {
+    if (sub.pauseCollection === true || sub.status === 'paused') continue;
     if (sub.status === 'active' || sub.status === 'trialing') return 'active_or_trialing';
     if (
       sub.status === 'past_due' &&
@@ -52,6 +66,7 @@ function lifecycleFor(
 }
 
 export interface AssessmentSnapshot {
+  projectId: string;
   fixtures: FixtureSet;
   sources: SourceSnapshot;
   publishedPolicy: PolicyVersion | null;
@@ -66,30 +81,34 @@ export interface AssessmentSnapshot {
 }
 
 export async function runAssessment(
-  opts: { reimportSources?: boolean; record?: boolean } = {},
+  opts: { reimportSources?: boolean; record?: boolean; projectId?: string } = {},
 ): Promise<AssessmentSnapshot> {
   const fixtures = loadFixtures();
+  const projectId = opts.projectId ?? (await getSession())?.projectId ?? 'default';
   return withStore(async (store) => {
     await seedFromFixtures(store, fixtures);
+    const ps = store.forProject(projectId);
     const evaluatedAt = new Date().toISOString();
     if (opts.reimportSources) {
-      await store.putSources({
+      await ps.putSources({
         stripe: fixtures.stripe,
         app: fixtures.app,
         importedAt: evaluatedAt,
         origin: 'fixtures',
+        origins: { stripe: 'fixtures', app: 'fixtures' },
       });
     }
-    const sources = (await store.getSources()) ?? {
+    const sources = (await ps.getSources()) ?? {
       stripe: fixtures.stripe,
       app: fixtures.app,
       importedAt: evaluatedAt,
       origin: 'fixtures' as const,
+      origins: { stripe: 'fixtures' as const, app: 'fixtures' as const },
     };
-    const publishedPolicy = await store.getPublishedPolicy();
+    const publishedPolicy = await ps.getPublishedPolicy();
     const policy = publishedPolicy?.policy ?? fixtures.policy;
-    const links = await store.listLinks();
-    const exceptions = await store.listExceptions();
+    const links = await ps.listLinks();
+    const exceptions = await ps.listExceptions();
 
     const assessments = evaluate({
       stripe: sources.stripe,
@@ -100,7 +119,7 @@ export async function runAssessment(
       evaluatedAt,
     });
     const { stored, incidents } = reconcileIncidents(
-      await store.getIncidents(),
+      await ps.getIncidents(),
       assessments,
       evaluatedAt,
       settlingMinutes() * 60_000,
@@ -124,7 +143,7 @@ export async function runAssessment(
           ),
       },
     );
-    await store.putIncidents(stored);
+    await ps.putIncidents(stored);
 
     const incidentLikes = incidents.map((i) => ({
       accountId: i.accountId,
@@ -143,7 +162,7 @@ export async function runAssessment(
         if (f.kind !== 'unknown') coveredPairs += 1;
       }
     if (opts.record) {
-      await store.recordRun({
+      await ps.recordRun({
         id: `run_${evaluatedAt}`,
         evaluatedAt,
         policyVersion: policy.version,
@@ -159,10 +178,11 @@ export async function runAssessment(
     }
 
     return {
+      projectId,
       fixtures,
       sources,
       publishedPolicy,
-      policyVersions: await store.listPolicyVersions(),
+      policyVersions: await ps.listPolicyVersions(),
       links,
       exceptions,
       policy,

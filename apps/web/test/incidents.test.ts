@@ -171,4 +171,18 @@ describe('reconcileIncidents', () => {
     expect(dirty.incidents[0].state).toBe('confirmed');
     expect(dirty.incidents[0].evidenceStale).toBe(true);
   });
+
+  it('workflow metadata survives a re-evaluation run', () => {
+    const { prev, id } = mismatchState();
+    prev[id].workflow = {
+      assignee: 'rev@local',
+      snoozedUntil: '2026-09-20T00:00:00Z',
+      acceptedRisk: { reason: 'legacy', by: 'admin@local', at: T0 },
+      comments: [{ by: 'rev@local', at: T0, text: 'checking' }],
+    };
+    const a = assessment({ features: [mismatchFeature] });
+    const { incidents, stored } = reconcileIncidents(prev, [a], T1, 0, ctx);
+    expect(incidents[0].workflow).toEqual(prev[id].workflow);
+    expect(stored[id].workflow).toEqual(prev[id].workflow);
+  });
 });

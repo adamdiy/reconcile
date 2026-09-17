@@ -183,12 +183,14 @@ describe('evaluate', () => {
     });
   });
 
-  it('unknown price -> unsupported_policy unknown', () => {
+  it('unknown price -> unsupported_policy unknown per capability', () => {
     const [a] = evaluate(
       withSub({ id: 'sub_1', items: [{ priceId: 'price_mystery', quantity: 1 }] }),
     );
-    expect(a.accountReasons).toContain('unsupported_policy');
     expect(a.features.every((f) => f.kind === 'unknown')).toBe(true);
+    expect(
+      a.features.every((f) => f.kind === 'unknown' && f.reasons.includes('unsupported_policy')),
+    ).toBe(true);
   });
 
   it('expired exception does not override', () => {
@@ -259,8 +261,8 @@ describe('evaluate', () => {
     });
   });
 
-  it('multiple simultaneously entitling subscriptions -> unsupported_billing_model', () => {
-    const input = withSub({ id: 'sub_1' });
+  it('multiple entitling subscriptions union capabilities', () => {
+    const input = withSub({ id: 'sub_1', items: [{ priceId: 'price_free', quantity: 1 }] });
     input.stripe.subscriptions.push({
       id: 'sub_2',
       customerId: 'cus_1',
@@ -270,18 +272,78 @@ describe('evaluate', () => {
       observedAt: NOW,
     });
     const [a] = evaluate(input);
-    expect(a.accountReasons).toContain('unsupported_billing_model');
+    expect(a.accountReasons).toEqual([]);
+    expect(a.features.every((f) => f.kind === 'match' && f.expected === true)).toBe(true);
   });
 
-  it('multi-item subscription -> unsupported_billing_model', () => {
+  it('multi-item subscription unions mapped capabilities; unmapped item adds no unknown when covered', () => {
     const [a] = evaluate(
       withSub({
         id: 'sub_1',
         items: [
           { priceId: 'price_pro', quantity: 1 },
-          { priceId: 'price_free', quantity: 1 },
+          { priceId: 'price_addon', quantity: 1 },
         ],
       }),
+    );
+    expect(a.accountReasons).toEqual([]);
+    expect(a.features.every((f) => f.kind === 'match')).toBe(true);
+  });
+
+  it('unmapped item yields unsupported_policy only for ungranted capabilities', () => {
+    const [a] = evaluate(
+      withSub(
+        {
+          id: 'sub_1',
+          items: [
+            { priceId: 'price_free', quantity: 1 },
+            { priceId: 'price_addon', quantity: 1 },
+          ],
+        },
+        { reports: true, exports: true },
+      ),
+    );
+    expect(a.features.find((f) => f.feature === 'reports')).toMatchObject({
+      kind: 'match',
+      expected: true,
+    });
+    const exports = a.features.find((f) => f.feature === 'exports');
+    expect(exports).toMatchObject({ kind: 'unknown', reasons: ['unsupported_policy'] });
+  });
+
+  it('quantity > 1 is supported and contributes nothing extra', () => {
+    const [a] = evaluate(
+      withSub({ id: 'sub_1', items: [{ priceId: 'price_pro', quantity: 5 }] }),
+    );
+    expect(a.accountReasons).toEqual([]);
+    expect(a.features.every((f) => f.kind === 'match')).toBe(true);
+  });
+
+  it('scheduleId is supported (items reflect the active phase)', () => {
+    const [a] = evaluate(
+      withSub({ id: 'sub_1', scheduleId: 'sub_sched_1' }),
+    );
+    expect(a.accountReasons).toEqual([]);
+    expect(a.features.every((f) => f.kind === 'match')).toBe(true);
+  });
+
+  it('paused status grants no access', () => {
+    const [a] = evaluate(
+      withSub({ id: 'sub_1', status: 'paused' }),
+    );
+    expect(a.features.every((f) => f.kind === 'mismatch' && f.expected === false)).toBe(true);
+  });
+
+  it('pauseCollection grants no access', () => {
+    const [a] = evaluate(
+      withSub({ id: 'sub_1', pauseCollection: true }),
+    );
+    expect(a.features.every((f) => f.kind === 'mismatch' && f.expected === false)).toBe(true);
+  });
+
+  it('zero-item subscription -> unsupported_billing_model', () => {
+    const [a] = evaluate(
+      withSub({ id: 'sub_1', items: [] }),
     );
     expect(a.accountReasons).toContain('unsupported_billing_model');
   });

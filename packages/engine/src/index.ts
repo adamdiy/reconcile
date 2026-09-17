@@ -13,7 +13,7 @@ import { createHash } from 'node:crypto';
 
 export type { CheckKind, Severity };
 
-export const ENGINE_VERSION = '0.1.0-hackathon';
+export const ENGINE_VERSION = '0.2.0';
 
 type Revisioned = { observedAt: string; sourceRevision?: string };
 
@@ -167,6 +167,7 @@ export function bucketAccounts(
 
 interface Entitlement {
   subscription: StripeSubscriptionFact;
+  priceId: string;
   mapping: { ruleId: string; priceId: string; capabilities: string[] };
 }
 
@@ -177,6 +178,8 @@ function cancelEffectiveTime(sub: StripeSubscriptionFact): string | undefined {
 }
 
 function isEntitling(sub: StripeSubscriptionFact, input: EvaluationInput, evaluatedMs: number): boolean {
+  // Paused collection or paused status grants no access (treated like canceled).
+  if (sub.pauseCollection === true || sub.status === 'paused') return false;
   switch (sub.status) {
     case 'trialing':
       return input.policy.lifecycle.trialGrantsAccess;
@@ -201,6 +204,10 @@ function graceEndIso(sub: StripeSubscriptionFact, graceHours: number): string | 
   return new Date(Date.parse(sub.firstFailedInvoiceDueAt) + graceHours * 3_600_000).toISOString();
 }
 
+// Seat quantity is intentionally ignored: it contributes nothing extra to
+// capability entitlement; seat-count checks are a separate future product.
+// Multi-item subscriptions, schedules, and multiple entitling subscriptions
+// are all supported — entitlement is the union of mapped item capabilities.
 const POTENTIALLY_ENTITLING = new Set(['trialing', 'active', 'past_due', 'paused']);
 
 export function evaluate(input: EvaluationInput): AccountAssessment[] {
@@ -301,22 +308,18 @@ export function evaluate(input: EvaluationInput): AccountAssessment[] {
     const candidateSubs = customerDeleted ? [] : subjectSubs;
     const entitlingSubs = candidateSubs.filter((s) => isEntitling(s, input, evaluatedMs));
     const malformed = candidateSubs.some(
-      (s) =>
-        POTENTIALLY_ENTITLING.has(s.status) &&
-        (s.items.length !== 1 ||
-          s.items.some((i) => i.quantity !== 1) ||
-          s.scheduleId !== undefined ||
-          s.pauseCollection === true ||
-          s.status === 'paused'),
+      (s) => POTENTIALLY_ENTITLING.has(s.status) && s.items.length === 0,
     );
-    if (malformed || entitlingSubs.length > 1) reasons.add('unsupported_billing_model');
+    if (malformed) reasons.add('unsupported_billing_model');
 
     const entitlements: Entitlement[] = [];
+    const unmappedPrices: string[] = [];
     for (const sub of entitlingSubs) {
-      const priceId = sub.items[0]?.priceId;
-      const mapping = policy.priceMappings.find((m) => m.priceId === priceId);
-      if (!mapping) reasons.add('unsupported_policy');
-      else entitlements.push({ subscription: sub, mapping });
+      for (const item of sub.items) {
+        const mapping = policy.priceMappings.find((m) => m.priceId === item.priceId);
+        if (!mapping) unmappedPrices.push(item.priceId);
+        else entitlements.push({ subscription: sub, priceId: item.priceId, mapping });
+      }
     }
 
     const accountReasons = [...reasons].sort();
@@ -366,6 +369,18 @@ export function evaluate(input: EvaluationInput): AccountAssessment[] {
       if (capExceptions.length === 1) {
         expected = capExceptions[0].expected;
         ruleId = `exception:${capExceptions[0].id}`;
+      }
+      // An unmapped item on an entitling subscription makes any capability it
+      // might have granted unknown — but only capabilities not already granted
+      // by a mapped item (or overridden by an exception).
+      if (unmappedPrices.length > 0 && !expected) {
+        return {
+          kind: 'unknown',
+          ruleId,
+          feature: cap,
+          reasons: ['unsupported_policy'],
+          evidenceIds: baseEvidence,
+        };
       }
       const observedRaw = subject.absentFromCompleteInventory
         ? false
