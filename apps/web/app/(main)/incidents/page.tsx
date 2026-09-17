@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
-import { runAssessment, freshnessLabel } from '../../lib/state';
-import { coverageIncidents } from '../../lib/coverage';
-import { IncidentFilters } from '../../components/IncidentFilters';
-import type { Incident } from '../../lib/state';
+import { runAssessment, freshnessLabel, settlingMinutes } from '../../../lib/state';
+import { coverageIncidents } from '../../../lib/coverage';
+import { IncidentFilters } from '../../../components/IncidentFilters';
+import type { Incident } from '../../../lib/state';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +13,7 @@ export default async function IncidentsPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const sp = await searchParams;
-  const snap = runAssessment();
+  const snap = await runAssessment();
   const rows: Incident[] = [...snap.incidents, ...coverageIncidents(snap.assessments)];
 
   let filtered = rows;
@@ -70,7 +70,18 @@ export default async function IncidentsPage({
               <td className="py-1 pr-3 font-mono text-xs">{r.lastConfirmedAt}</td>
               <td className="py-1 pr-3">{r.severity}</td>
               <td className="py-1 pr-3 font-mono text-xs">{freshnessOf(r.accountId)}</td>
-              <td className="py-1 pr-3">{r.state}</td>
+              <td className="py-1 pr-3">
+                {r.state}
+                {r.state === 'candidate' && (
+                  <div className="text-xs text-gray-500">
+                    since {r.firstSeenAt}; confirms on next observation after{' '}
+                    {new Date(Date.parse(r.firstSeenAt) + settlingMinutes() * 60_000).toISOString()}
+                  </div>
+                )}
+                {r.state === 'confirmed' && (
+                  <div className="text-xs text-gray-500">confirmed {r.lastConfirmedAt}</div>
+                )}
+              </td>
             </tr>
           ))}
           {filtered.length === 0 && (

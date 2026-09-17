@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { runAssessment, settlingMinutes } from '../../../lib/state';
-import { coverageIncidents } from '../../../lib/coverage';
-import { RecheckButton } from '../../../components/RecheckButton';
+import { runAssessment, settlingMinutes } from '../../../../lib/state';
+import { coverageIncidents } from '../../../../lib/coverage';
+import { RecheckButton } from '../../../../components/RecheckButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,16 +20,16 @@ export default async function IncidentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const snap = runAssessment();
+  const snap = await runAssessment();
   const incidents = [...snap.incidents, ...coverageIncidents(snap.assessments)];
   const inc = incidents.find((i) => i.id === id);
   if (!inc) notFound();
 
   const assessment = snap.assessments.find((a) => a.accountId === inc.accountId);
-  const exceptions = snap.fixtures.exceptions.filter(
+  const exceptions = snap.exceptions.filter(
     (e) => e.accountId === inc.accountId && (inc.feature === '*' || e.capability === inc.feature),
   );
-  const rule = snap.fixtures.policy.priceMappings.find((m) => m.ruleId === inc.ruleId);
+  const rule = snap.policy.priceMappings.find((m) => m.ruleId === inc.ruleId);
 
   const explanation =
     inc.state === 'confirmed'
@@ -99,6 +99,16 @@ export default async function IncidentDetailPage({
           )}
           <div className="mt-2 text-sm">
             severity: <strong>{inc.severity}</strong> — state: <strong>{inc.state}</strong>
+            {inc.state === 'candidate' && (
+              <div className="text-xs text-gray-500">
+                candidate since {inc.firstSeenAt}; confirms after{' '}
+                {new Date(Date.parse(inc.firstSeenAt) + settlingMinutes() * 60_000).toISOString()}{' '}
+                on next observation
+              </div>
+            )}
+            {inc.state === 'confirmed' && (
+              <div className="text-xs text-gray-500">confirmed {inc.lastConfirmedAt}</div>
+            )}
           </div>
         </section>
 

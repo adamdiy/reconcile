@@ -1,21 +1,21 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { runAssessment } from '../../../lib/state';
+import { runAssessment } from '../../../../lib/state';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AccountPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const snap = runAssessment();
+  const snap = await runAssessment();
   const a = snap.assessments.find((x) => x.accountId === id);
   if (!a) notFound();
 
-  const links = snap.fixtures.links.filter((l) => l.accountId === id);
+  const links = snap.links.filter((l) => l.accountId === id);
   const customerIds = new Set(links.map((l) => l.stripeCustomerId));
-  const subs = snap.fixtures.stripe.subscriptions.filter((s) => customerIds.has(s.customerId));
-  const observation = snap.fixtures.app.accounts.find((x) => x.accountId === id);
+  const subs = snap.sources.stripe.subscriptions.filter((s) => customerIds.has(s.customerId));
+  const observation = snap.sources.app.accounts.find((x) => x.accountId === id);
   const bucket = snap.buckets.get(id);
-  const exceptions = snap.fixtures.exceptions.filter((e) => e.accountId === id);
+  const exceptions = snap.exceptions.filter((e) => e.accountId === id);
 
   return (
     <main>

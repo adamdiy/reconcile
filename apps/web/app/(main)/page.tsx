@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { runAssessment, settlingMinutes } from '../lib/state';
-import { coverageIncidents } from '../lib/coverage';
-import { RecheckButton } from '../components/RecheckButton';
+import { runAssessment, settlingMinutes } from '../../lib/state';
+import { coverageIncidents } from '../../lib/coverage';
+import { RecheckButton } from '../../components/RecheckButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +12,8 @@ const BUCKET_LABELS = [
   'Fully assessed',
 ] as const;
 
-export default function OverviewPage() {
-  const snap = runAssessment();
+export default async function OverviewPage() {
+  const snap = await runAssessment();
   const coverage = coverageIncidents(snap.assessments);
   const counts = [0, 0, 0, 0, 0];
   const partial = new Set<string>();
@@ -37,17 +37,21 @@ export default function OverviewPage() {
       <div className="mb-6 grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
         <div>
           <div className="text-gray-500">Stripe inventory</div>
-          <div className="font-mono text-xs">{snap.fixtures.stripe.runId}</div>
-          <div className="font-mono text-xs">{snap.fixtures.stripe.observedAt}</div>
+          <div className="font-mono text-xs">{snap.sources.stripe.runId}</div>
+          <div className="font-mono text-xs">{snap.sources.stripe.observedAt}</div>
         </div>
         <div>
           <div className="text-gray-500">App inventory</div>
-          <div className="font-mono text-xs">{snap.fixtures.app.runId}</div>
-          <div className="font-mono text-xs">{snap.fixtures.app.observedAt}</div>
+          <div className="font-mono text-xs">{snap.sources.app.runId}</div>
+          <div className="font-mono text-xs">{snap.sources.app.observedAt}</div>
         </div>
         <div>
           <div className="text-gray-500">Policy version</div>
-          <div className="font-mono text-xs">{snap.fixtures.policy.version}</div>
+          <div className="font-mono text-xs">
+            {snap.publishedPolicy
+              ? `${snap.publishedPolicy.version} published ${snap.publishedPolicy.publishedAt}`
+              : snap.fixtures.policy.version}
+          </div>
         </div>
         <div>
           <div className="text-gray-500">Population</div>
@@ -79,6 +83,19 @@ export default function OverviewPage() {
           Detection envelope: collector recheck latency + {settlingMinutes()} min settling (demo
           settling is {settlingMinutes()} min). Evaluated at{' '}
           <span className="font-mono text-xs">{snap.evaluatedAt}</span>.
+        </div>
+        <div className="mt-1 text-gray-600">
+          <Link href="/runs" className="underline">
+            Assessment runs
+          </Link>
+          {' · '}
+          <Link href="/report" className="underline">
+            Printable report
+          </Link>
+          {' · '}
+          <a href="/api/report.csv" className="underline">
+            Incidents CSV
+          </a>
         </div>
         <div className="mt-1 text-gray-600">
           Coverage gaps: {coverage.length} open (unmapped identity, stale evidence, unsupported

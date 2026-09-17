@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import './globals.css';
+import '../globals.css';
 import type { ReactNode } from 'react';
 
 export const metadata = { title: 'Reconcile (hackathon demo)' };
@@ -15,7 +15,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <nav className="flex gap-4 text-sm">
             <Link href="/">Overview</Link>
             <Link href="/incidents">Incidents</Link>
-            <Link href="/setup/mapping">Mapping setup</Link>
+            <Link href="/runs">Runs</Link>
+            <Link href="/setup/policy">Policy</Link>
+            <Link href="/setup/exceptions">Exceptions</Link>
+            <Link href="/setup/identity">Identity</Link>
+            <Link href="/setup/mapping">AI mapping</Link>
           </nav>
         </header>
         {children}
