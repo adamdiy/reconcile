@@ -62,13 +62,11 @@ export async function testProvider(): Promise<{ ok: boolean; detail: string }> {
   try {
     const suggester = createSuggester();
     const draft = await suggester.draftException({
-      text: 'test ping — verify provider responds',
+      text: 'Provider check: grant acct_test the test capability until 2099-01-01.',
       accounts: [{ accountId: 'acct_test' }],
       capabilities: ['test'],
       policy: loadFixtures().policy,
       now: new Date().toISOString(),
-    }).catch((e) => {
-      throw e;
     });
     return { ok: true, detail: `${info.name}/${info.model} responded (${draft.provider})` };
   } catch (e) {
