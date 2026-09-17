@@ -19,7 +19,7 @@ async function seeded() {
   const dir = mkdtempSync(path.join(tmpdir(), 'repairs-'));
   const store = new JsonFileStore(dir);
   const fixtures = loadFixtures();
-  await seedFromFixtures(store, fixtures, 'default', {});
+  await seedFromFixtures(store, fixtures, 'default', process.env);
   const ps = store.forProject('default');
   const ev = await evaluateProject(store, 'default', {
     fallback: { stripe: fixtures.stripe, app: fixtures.app, policy: fixtures.policy },
@@ -122,12 +122,15 @@ describe('reviewed repairs', () => {
         ? x
         : {
             ...x,
-            features: x.features.map((f) =>
-              f.feature === 'exports' ? { ...f, kind: 'match' as const, observed: true } : f,
+            features: x.features.map(
+              (f) =>
+                (f.feature === 'exports'
+                  ? { ...f, kind: 'match', observed: true }
+                  : f) as AccountAssessment['features'][number],
             ),
           },
     );
-    const changed = await verifyRepairs(ps, healed, {}, NOW);
+    const changed = await verifyRepairs(ps, healed, process.env, NOW);
     expect(changed.map((c) => c.state)).toEqual(['verified']);
   });
 
