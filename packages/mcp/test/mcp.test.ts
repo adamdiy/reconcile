@@ -59,8 +59,8 @@ describe('reconcile-mcp', () => {
   it('get_coverage, list_runs, get_published_policy, list_exceptions respond', async () => {
     const { client } = await setup();
     const cov = textOf(await client.callTool({ name: 'get_coverage', arguments: {} }));
-    expect(cov.population).toBe(12);
-    expect(cov.totalPairs).toBe(36);
+    expect(cov.population).toBe(13);
+    expect(cov.totalPairs).toBe(42);
     const runs = textOf(await client.callTool({ name: 'list_runs', arguments: { limit: 5 } }));
     expect(Array.isArray(runs)).toBe(true);
     const pol = textOf(await client.callTool({ name: 'get_published_policy', arguments: {} }));

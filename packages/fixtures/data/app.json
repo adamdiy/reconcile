@@ -237,15 +237,15 @@
       }
     },
     {
-      "accountId": "acct_010",
+      "accountId": "acct_013",
       "stripeCustomerIds": [
-        "cus_010"
+        "cus_013"
       ],
       "localBillingRecords": [
         {
-          "localId": "lr_010",
-          "stripeSubscriptionId": "sub_010",
-          "stripeCustomerId": "cus_010"
+          "localId": "lr_013",
+          "stripeSubscriptionId": "sub_013",
+          "stripeCustomerId": "cus_013"
         }
       ],
       "observedAt": "2026-09-16T18:30:00Z",

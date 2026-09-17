@@ -212,9 +212,8 @@
       "status": "active",
       "items": [
         {
-          "priceId": "price_api_calls",
-          "quantity": 1,
-          "usageType": "metered"
+          "priceId": "price_pro",
+          "quantity": 1
         }
       ],
       "cancelAtPeriodEnd": false,
@@ -242,6 +241,20 @@
         {
           "priceId": "price_pro",
           "quantity": 1
+        }
+      ],
+      "cancelAtPeriodEnd": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "sub_013",
+      "customerId": "cus_013",
+      "status": "active",
+      "items": [
+        {
+          "priceId": "price_api_calls",
+          "quantity": 1,
+          "usageType": "metered"
         }
       ],
       "cancelAtPeriodEnd": false,

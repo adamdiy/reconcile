@@ -25,9 +25,9 @@ describe('evaluateProject', () => {
       fallback: { stripe: fixtures.stripe, app: fixtures.app, policy: fixtures.policy },
       settlingMs: 0,
     });
-    expect(ev.assessments.length).toBe(12);
+    expect(ev.assessments.length).toBe(13);
     expect(ev.incidents.length).toBeGreaterThan(0);
-    expect(ev.bucketCounts.reduce((a, b) => a + b, 0)).toBe(12);
+    expect(ev.bucketCounts.reduce((a, b) => a + b, 0)).toBe(13);
     // pure read: no writes to incidents or runs
     expect(await ps.getIncidents()).toEqual(before);
     expect(await ps.listRuns()).toEqual([]);
