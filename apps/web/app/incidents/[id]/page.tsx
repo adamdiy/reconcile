@@ -33,10 +33,10 @@ export default async function IncidentDetailPage({
 
   const explanation =
     inc.state === 'confirmed'
-      ? `Confirmed: a second evaluation at least ${settlingMinutes()} minute(s) after the candidate still shows the mismatch (occurrences: ${inc.occurrences}).`
+      ? `Confirmed: the discrepancy was seen in ${inc.occurrences} evaluations and a second evaluation at least ${settlingMinutes()} minute(s) after the candidate still shows the mismatch.`
       : inc.state === 'resolved'
         ? `Resolved (${inc.resolutionReason}): the latest evaluation no longer shows this discrepancy with fresh matching evidence.`
-        : `Candidate: recorded on first detection; will confirm only if a second evaluation at least ${settlingMinutes()} minute(s) later still shows the mismatch.`;
+        : `Candidate: recorded on first detection (occurrences: ${inc.occurrences}); will confirm only if a second evaluation at least ${settlingMinutes()} minute(s) later still shows the mismatch.`;
 
   const hypotheses =
     inc.check === 'unexpected_feature_enabled'
@@ -98,6 +98,12 @@ export default async function IncidentDetailPage({
           <p className="text-sm">{explanation}</p>
           {inc.resolutionReason && (
             <p className="mt-1 text-sm text-gray-500">resolution: {inc.resolutionReason}</p>
+          )}
+          {inc.evidenceStale && (
+            <p className="mt-1 text-sm text-amber-700">
+              Awaiting fresh evidence: the latest evaluation could not confirm or clear this
+              incident (stale, incomplete or unmapped sources).
+            </p>
           )}
         </section>
       </div>

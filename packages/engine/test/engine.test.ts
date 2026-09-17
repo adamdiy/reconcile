@@ -98,6 +98,18 @@ describe('evaluate', () => {
     expect(a.features.every((f) => f.kind === 'mismatch' && f.expected === false)).toBe(true);
   });
 
+  it('trialing without access still schedules the trialEnd transition', () => {
+    const input = withSub({
+      id: 'sub_1',
+      status: 'trialing',
+      trialEnd: '2026-09-25T00:00:00Z',
+    });
+    input.policy = { ...policy, lifecycle: { ...policy.lifecycle, trialGrantsAccess: false } };
+    const [a] = evaluate(input);
+    expect(a.features.every((f) => f.kind === 'mismatch' && f.expected === false)).toBe(true);
+    expect(a.nextTransitionAt).toBe('2026-09-25T00:00:00.000Z');
+  });
+
   it('past_due inside grace entitles', () => {
     const [a] = evaluate(
       withSub({ id: 'sub_1', status: 'past_due', firstFailedInvoiceDueAt: '2026-09-16T00:00:00Z' }),

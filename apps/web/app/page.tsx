@@ -72,8 +72,8 @@ export default function OverviewPage() {
 
       <div className="mb-6 text-sm">
         <div>
-          Feature coverage: <strong>{covered}</strong> covered, <strong>{uncovered}</strong>{' '}
-          uncovered feature evaluations
+          Feature coverage: <strong>{covered}</strong> of <strong>{covered + uncovered}</strong>{' '}
+          (account, feature) pairs covered ({uncovered} uncovered)
         </div>
         <div className="mt-1 text-gray-600">
           Detection envelope: collector recheck latency + {settlingMinutes()} min settling (demo
@@ -82,7 +82,10 @@ export default function OverviewPage() {
         </div>
         <div className="mt-1 text-gray-600">
           Coverage gaps: {coverage.length} open (unmapped identity, stale evidence, unsupported
-          models). Partial-coverage badge on {partial.size} account(s).
+          models).
+          {partial.size > 0 && (
+            <span> Partial-coverage badge on {partial.size} account(s).</span>
+          )}
         </div>
       </div>
       <RecheckButton />

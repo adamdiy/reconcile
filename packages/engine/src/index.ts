@@ -233,7 +233,6 @@ export function evaluate(input: EvaluationInput): AccountAssessment[] {
   const defaultRuleId = (cap: string): string =>
     capabilityRuleIds.get(cap)?.[0] ?? `${policy.ruleIdPrefix ?? 'policy'}:${cap}`;
 
-  // integrity: duplicate local subscription identity across all accounts
   const bySubId = new Map<string, { accountId: string; localId: string }[]>();
   for (const s of subjects) {
     for (const rec of s.account?.localBillingRecords ?? []) {
@@ -298,9 +297,7 @@ export function evaluate(input: EvaluationInput): AccountAssessment[] {
     )
       reasons.add('unmapped_identity');
     if (subject.linkCount > 1) reasons.add('ambiguous_identity');
-    if (!input.stripe.complete || !input.app.complete) {
-      // completeness unknown -> per-record staleness cannot establish absence either
-    } else {
+    if (input.stripe.complete && input.app.complete) {
       if (subject.account && evaluatedMs - Date.parse(subject.account.observedAt) > staleMs)
         reasons.add('stale_evidence');
       for (const sub of subjectSubs)
@@ -330,8 +327,10 @@ export function evaluate(input: EvaluationInput): AccountAssessment[] {
 
     const accountReasons = [...reasons].sort();
     const nextTransitions: number[] = [];
-    for (const sub of entitlingSubs) {
+    for (const sub of candidateSubs) {
       if (sub.status === 'trialing' && sub.trialEnd) nextTransitions.push(Date.parse(sub.trialEnd));
+    }
+    for (const sub of entitlingSubs) {
       if (sub.status === 'past_due') {
         const g = graceEndIso(sub, policy.lifecycle.pastDueGraceHours);
         if (g) nextTransitions.push(Date.parse(g));
