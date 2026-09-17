@@ -269,3 +269,47 @@ export const IncidentSchema = IncidentSnapshotSchema.extend({
   workflow: IncidentWorkflowSchema.optional(),
 });
 export type Incident = z.infer<typeof IncidentSchema>;
+
+export const JobKindSchema = z.enum(['assess', 'stripe_sync', 'notify', 'digest']);
+export type JobKind = z.infer<typeof JobKindSchema>;
+
+export const JobStatusSchema = z.enum(['queued', 'running', 'succeeded', 'failed', 'dead']);
+export type JobStatus = z.infer<typeof JobStatusSchema>;
+
+export const JobSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  kind: JobKindSchema,
+  payload: z.record(z.unknown()),
+  idempotencyKey: z.string(),
+  status: JobStatusSchema,
+  attempts: z.number().int(),
+  maxAttempts: z.number().int(),
+  runAfter: IsoInstant,
+  leaseUntil: IsoInstant.optional(),
+  lastError: z.string().optional(),
+  createdAt: IsoInstant,
+  updatedAt: IsoInstant,
+});
+export type Job = z.infer<typeof JobSchema>;
+
+export const ScheduleSchema = z.object({
+  projectId: z.string(),
+  scanIntervalMinutes: z.number().int().min(1).default(1440),
+  digestHour: z.number().int().min(0).max(23).default(9),
+  enabled: z.boolean(),
+});
+export type Schedule = z.infer<typeof ScheduleSchema>;
+
+export const NotificationRuleSchema = z.object({
+  id: z.string(),
+  channel: z.enum(['slack', 'email', 'outbox']),
+  target: z.string().default(''),
+  checkKinds: z.union([z.array(CheckKindSchema), z.literal('all')]).default('all'),
+  minSeverity: SeveritySchema.default('low'),
+  // Matched against incident.state, or resolutionReason for resolved incidents
+  // (e.g. 'verified_remediated').
+  states: z.array(z.string()).default(['confirmed', 'verified_remediated']),
+  enabled: z.boolean(),
+});
+export type NotificationRule = z.infer<typeof NotificationRuleSchema>;

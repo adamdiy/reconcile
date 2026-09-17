@@ -1,0 +1,28 @@
+{
+  "name": "@reconcile/notify",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@reconcile/domain": "workspace:*",
+    "nodemailer": "10.0.3",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.5",
+    "@types/nodemailer": "6.4.20",
+    "typescript": "5.9.2",
+    "vitest": "3.2.4"
+  }
+}
