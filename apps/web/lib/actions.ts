@@ -14,7 +14,14 @@ async function refresh(): Promise<void> {
   revalidatePath('/', 'layout');
 }
 
+// Recheck re-evaluates the stored sources (connector or fixture) as they are.
 export async function recheck(): Promise<void> {
+  await runAssessment({ record: true });
+  revalidatePath('/', 'layout');
+}
+
+// Simulated collector: re-import fixture data as fresh sources.
+export async function importFixtures(): Promise<void> {
   await runAssessment({ reimportSources: true, record: true });
   revalidatePath('/', 'layout');
 }

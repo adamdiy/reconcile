@@ -1,0 +1,8 @@
+{
+  "id": "sub_002",
+  "customer": "cus_002",
+  "status": "past_due",
+  "items": { "data": [{ "price": { "id": "price_basic", "unit_amount": 2000 }, "quantity": 1 }] },
+  "cancel_at_period_end": false,
+  "latest_invoice": { "id": "in_002", "status": "open", "due_date": 1788998400, "created": 1788912000 }
+}
