@@ -1,5 +1,5 @@
 {
-  "name": "@reconcile/ai",
+  "name": "@reconcile/mcp",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,13 +9,20 @@
       "default": "./dist/index.js"
     }
   },
+  "bin": {
+    "reconcile-mcp": "./bin/reconcile-mcp.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@reconcile/core": "workspace:*",
     "@reconcile/domain": "workspace:*",
+    "@reconcile/fixtures": "workspace:*",
+    "@reconcile/store": "workspace:*",
     "zod": "3.25.76"
   },
   "devDependencies": {

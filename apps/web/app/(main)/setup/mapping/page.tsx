@@ -3,6 +3,7 @@ import { loadFixtures } from '@reconcile/fixtures';
 import { withProject } from '../../../../lib/state';
 import { requireSession } from '../../../../lib/auth';
 import { MappingPanel } from '../../../../components/MappingPanel';
+import { describeProvider } from '@reconcile/ai';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,12 @@ export default async function MappingPage() {
           </Link>{' '}
           and never affect results until published.
         </p>
+        {describeProvider().name === 'stub' && (
+          <p className="mt-2 rounded bg-amber-50 px-2 py-1 text-xs text-amber-800">
+            Stub provider active — canned suggestions. Configure a real provider at{' '}
+            <Link href="/settings/ai" className="underline">/settings/ai</Link>.
+          </p>
+        )}
 
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <section className="rounded border p-4">

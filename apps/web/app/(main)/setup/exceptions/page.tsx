@@ -1,6 +1,7 @@
 import { runAssessment } from '../../../../lib/state';
 import { deleteException, upsertExceptionAction } from '../../../../lib/actions';
-import { ExceptionForm } from '../../../../components/ExceptionForm';
+import { draftException } from '../../../../lib/ai-actions';
+import { DraftException } from '../../../../components/DraftException';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,9 +60,10 @@ export default async function ExceptionsPage() {
           )}
         </tbody>
       </table>
-      <ExceptionForm
+      <DraftException
         capabilities={snap.policy.capabilities}
-        action={upsertExceptionAction}
+        draftAction={draftException}
+        saveAction={upsertExceptionAction}
       />
     </main>
   );

@@ -12,6 +12,7 @@
   "dependencies": {
     "@reconcile/ai": "workspace:*",
     "@reconcile/connectors": "workspace:*",
+    "@reconcile/core": "workspace:*",
     "@reconcile/domain": "workspace:*",
     "@reconcile/engine": "workspace:*",
     "@reconcile/fixtures": "workspace:*",

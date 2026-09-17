@@ -80,6 +80,8 @@ export interface ProjectStore {
   listNotificationRules(): Promise<NotificationRule[]>;
   upsertNotificationRule(r: NotificationRule): Promise<void>;
   deleteNotificationRule(id: string): Promise<void>;
+  getExplanation(key: string): Promise<unknown | null>;
+  putExplanation(key: string, e: unknown): Promise<void>;
 }
 
 export interface Store {
@@ -240,6 +242,13 @@ class JsonProjectStore implements ProjectStore {
       'notification-rules',
       (await this.listNotificationRules()).filter((x) => x.id !== id),
     );
+  }
+
+  async getExplanation(key: string) {
+    return this.read<Record<string, unknown>>('explanations', {})[key] ?? null;
+  }
+  async putExplanation(key: string, e: unknown) {
+    this.write('explanations', { ...this.read<Record<string, unknown>>('explanations', {}), [key]: e });
   }
 }
 
@@ -605,6 +614,19 @@ class PostgresProjectStore implements ProjectStore {
       await tx`DELETE FROM notification_rules WHERE project_id = ${this.projectId} AND id = ${id}`;
     });
   }
+
+  async getExplanation(key: string) {
+    return this.scoped(async (tx) => {
+      const rows = await tx`SELECT payload FROM explanations WHERE project_id = ${this.projectId} AND key = ${key}`;
+      return rows[0]?.payload ?? null;
+    });
+  }
+  async putExplanation(key: string, e: unknown) {
+    await this.scoped(async (tx) => {
+      await tx`INSERT INTO explanations (project_id, key, payload) VALUES (${this.projectId}, ${key}, ${this.j(e)})
+        ON CONFLICT (project_id, key) DO UPDATE SET payload = EXCLUDED.payload`;
+    });
+  }
 }
 
 export class PostgresStore implements Store {
@@ -618,7 +640,7 @@ export class PostgresStore implements Store {
     const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../sql');
     await this.sql.begin(async (tx) => {
       await tx`SELECT pg_advisory_xact_lock(727272)`;
-      for (const f of ['001_init.sql', '002_tenancy.sql', '003_jobs.sql'])
+      for (const f of ['001_init.sql', '002_tenancy.sql', '003_jobs.sql', '004_ai.sql'])
         await tx.unsafe(readFileSync(path.join(dir, f), 'utf8'));
     });
   }

@@ -102,3 +102,6 @@ on live data instead of fixtures.
 | `STRIPE_WEBHOOK_SECRET` | unset | `whsec_…` for `/api/webhooks/stripe`; unsigned webhooks are never accepted (503 when unset) |
 | `SMTP_URL` | unset | `smtp://…` for the email notification channel |
 | `SLACK_WEBHOOK_URL` | unset | Referenced by notification rules as `env:SLACK_WEBHOOK_URL` |
+| `RECONCILE_AI_PROVIDER` | auto | `stub` to force the stub provider, else auto-detected from the keys below |
+| `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` | unset | OpenAI-compatible advisory provider (`gpt-4o-mini` default model) |
+| `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | unset | Anthropic advisory provider (`claude-haiku-4-5` default model) |
