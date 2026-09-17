@@ -8,6 +8,22 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://reconcile:reconcile@localhost:5432/reconcile
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: reconcile
+          POSTGRES_USER: reconcile
+          POSTGRES_PASSWORD: reconcile
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U reconcile -d reconcile"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
