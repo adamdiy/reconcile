@@ -1,0 +1,22 @@
+{
+  "name": "reconcile",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm -r --filter ./packages/* build && pnpm --filter @reconcile/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "eslint": "9.33.0",
+    "typescript": "5.9.2",
+    "typescript-eslint": "8.40.0"
+  }
+}
