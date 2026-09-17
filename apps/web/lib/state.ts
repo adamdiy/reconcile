@@ -9,6 +9,52 @@ import {
 import type { AssessmentRun, PolicyVersion, SourceSnapshot, Store } from '@reconcile/store';
 import { reconcileIncidents } from './incidents';
 import { getSession } from './auth';
+import { newJob } from '@reconcile/jobs';
+import { ruleMatches, notificationFor, idempotencyKey } from '@reconcile/notify';
+import type { ProjectStore } from '@reconcile/store';
+
+/** After a recorded assessment, enqueue one notify job per matching incident transition. */
+async function enqueueTransitionNotifications(
+  store: Store,
+  ps: ProjectStore,
+  projectId: string,
+  prev: Record<string, StoredIncident>,
+  incidents: Incident[],
+  at: string,
+): Promise<void> {
+  const rules = await ps.listNotificationRules();
+  if (rules.length === 0) return;
+  for (const inc of incidents) {
+    const before = prev[inc.id];
+    if (!before) continue;
+    const prevLabel = before.state === 'resolved' ? (before.resolutionReason ?? 'resolved') : before.state;
+    const nextLabel = inc.state === 'resolved' ? (inc.resolutionReason ?? 'resolved') : inc.state;
+    if (prevLabel === nextLabel) continue;
+    // Snoozed or accepted-risk incidents never notify.
+    const wf = inc.workflow;
+    if (wf?.acceptedRisk) continue;
+    if (wf?.snoozedUntil && wf.snoozedUntil > at) continue;
+    const transition = {
+      fingerprint: inc.id,
+      accountId: inc.accountId,
+      checkKind: inc.check,
+      feature: inc.feature,
+      severity: inc.severity,
+      to: nextLabel,
+      at,
+    };
+    for (const rule of rules) {
+      if (!ruleMatches(rule, transition)) continue;
+      const notification = notificationFor(projectId, rule, transition);
+      await store.enqueueJob(
+        newJob('notify', projectId, idempotencyKey(rule.id, transition), at, {
+          ruleId: rule.id,
+          notification,
+        }),
+      );
+    }
+  }
+}
 import type { Incident, IncidentState, StoredIncident } from './incidents';
 
 export type { Incident, IncidentState, StoredIncident };
@@ -28,8 +74,6 @@ export async function withStore<T>(fn: (store: Store) => Promise<T>): Promise<T>
     await store.close();
   }
 }
-
-import type { ProjectStore } from '@reconcile/store';
 
 export async function withProject<T>(
   projectId: string,
@@ -118,8 +162,9 @@ export async function runAssessment(
       exceptions,
       evaluatedAt,
     });
+    const prevIncidents = await ps.getIncidents();
     const { stored, incidents } = reconcileIncidents(
-      await ps.getIncidents(),
+      prevIncidents,
       assessments,
       evaluatedAt,
       settlingMinutes() * 60_000,
@@ -161,6 +206,15 @@ export async function runAssessment(
         totalPairs += 1;
         if (f.kind !== 'unknown') coveredPairs += 1;
       }
+    const unknownReasons: Record<string, number> = {};
+    for (const a of assessments)
+      for (const f of a.features)
+        if (f.kind === 'unknown')
+          for (const r of f.reasons) unknownReasons[r] = (unknownReasons[r] ?? 0) + 1;
+    const nextTransitionAt = assessments
+      .map((a) => a.nextTransitionAt)
+      .filter((t): t is string => Boolean(t))
+      .sort()[0];
     if (opts.record) {
       await ps.recordRun({
         id: `run_${evaluatedAt}`,
@@ -173,8 +227,11 @@ export async function runAssessment(
           coveredPairs,
           totalPairs,
           incidentsOpen: incidents.filter((i) => i.state !== 'resolved').length,
+          unknownReasons,
         },
+        nextTransitionAt,
       });
+      await enqueueTransitionNotifications(store, ps, projectId, prevIncidents, incidents, evaluatedAt);
     }
 
     return {

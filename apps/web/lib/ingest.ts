@@ -5,6 +5,7 @@ import { loadFixtures } from '@reconcile/fixtures';
 import { seedFromFixtures } from '@reconcile/store';
 import type { SourceOrigin, SourceSnapshot } from '@reconcile/store';
 import { runAssessment, withStore } from './state';
+import type { ProjectStore } from '@reconcile/store';
 
 function projectFor(req: NextRequest): string {
   return (
@@ -32,6 +33,42 @@ function authorized(req: NextRequest): NextResponse | null {
   return null;
 }
 
+export function projectFromRequest(req: NextRequest): string {
+  return projectFor(req);
+}
+
+/** Merge one inventory side into the stored SourceSnapshot. Throws 'stale' for older observedAt. */
+export async function mergeSourceSnapshot<I extends { observedAt: string }>(
+  ps: Pick<ProjectStore, 'getSources' | 'putSources'>,
+  side: 'stripe' | 'app',
+  incoming: I,
+): Promise<'ok' | 'stale'> {
+  const existing = await ps.getSources();
+  if (existing && incoming.observedAt < existing[side].observedAt) return 'stale';
+  const fixtures = loadFixtures();
+  const base: SourceSnapshot =
+    existing ?? {
+      stripe: fixtures.stripe,
+      app: fixtures.app,
+      importedAt: new Date().toISOString(),
+      origin: 'fixtures',
+    };
+  const origins = {
+    stripe: base.origins?.stripe ?? base.origin,
+    app: base.origins?.app ?? base.origin,
+  };
+  const next: SourceSnapshot = {
+    ...base,
+    stripe: side === 'stripe' ? (incoming as unknown as StripeInventory) : base.stripe,
+    app: side === 'app' ? (incoming as unknown as AppInventory) : base.app,
+    importedAt: new Date().toISOString(),
+    origin: 'connector',
+    origins: { ...origins, [side]: 'connector' as SourceOrigin },
+  };
+  await ps.putSources(next);
+  return 'ok';
+}
+
 export async function handleIngest<S extends { observedAt: string }>(
   req: NextRequest,
   side: 'stripe' | 'app',
@@ -48,34 +85,14 @@ export async function handleIngest<S extends { observedAt: string }>(
   const projectId = projectFor(req);
   const earlyResponse = await withStore(async (store) => {
     await seedFromFixtures(store, loadFixtures());
-    const ps = store.forProject(projectId);
-    const existing = await ps.getSources();
-    if (existing && incoming.observedAt < existing[side].observedAt)
+    const result = await mergeSourceSnapshot(store.forProject(projectId), side, incoming);
+    if (result === 'stale') {
+      const existing = await store.forProject(projectId).getSources();
       return NextResponse.json(
-        { error: 'stale snapshot', storedObservedAt: existing[side].observedAt },
+        { error: 'stale snapshot', storedObservedAt: existing?.[side].observedAt },
         { status: 409 },
       );
-    const fixtures = loadFixtures();
-    const base: SourceSnapshot =
-      existing ?? {
-        stripe: fixtures.stripe,
-        app: fixtures.app,
-        importedAt: new Date().toISOString(),
-        origin: 'fixtures',
-      };
-    const origins = {
-      stripe: base.origins?.stripe ?? base.origin,
-      app: base.origins?.app ?? base.origin,
-    };
-    const next: SourceSnapshot = {
-      ...base,
-      stripe: side === 'stripe' ? (incoming as unknown as StripeInventory) : base.stripe,
-      app: side === 'app' ? (incoming as unknown as AppInventory) : base.app,
-      importedAt: new Date().toISOString(),
-      origin: 'connector',
-      origins: { ...origins, [side]: 'connector' as SourceOrigin },
-    };
-    await ps.putSources(next);
+    }
     return null;
   });
   if (earlyResponse) return earlyResponse;
