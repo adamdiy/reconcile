@@ -1,18 +1,15 @@
-import { loadFixtures } from '@reconcile/fixtures';
-import { createStore, seedFromFixtures } from '@reconcile/store';
+import { withProject } from '../../../../lib/state';
+import { requireSession } from '../../../../lib/auth';
 import { PolicyEditor } from '../../../../components/PolicyEditor';
 
 export const dynamic = 'force-dynamic';
 
 export default async function PolicyPage() {
-  const fx = loadFixtures();
-  const store = createStore();
-  try {
-    await store.migrate();
-    await seedFromFixtures(store, fx);
-    const versions = await store.listPolicyVersions();
+  const session = await requireSession();
+  return withProject(session.projectId, async (_store, ps) => {
+    const versions = await ps.listPolicyVersions();
     const published = versions[0] ?? null;
-    const draft = await store.getPolicyDraft();
+    const draft = await ps.getPolicyDraft();
     const today = new Date().toISOString().slice(0, 10);
     const nextVersion = `v${versions.length + 1}-${today}`;
 
@@ -60,15 +57,13 @@ export default async function PolicyPage() {
           <section className="rounded border p-4">
             <h2 className="mb-2 font-medium">Draft</h2>
             <PolicyEditor
-              initial={draft?.policy ?? published?.policy ?? fx.policy}
-              capabilities={(published?.policy ?? fx.policy).capabilities}
+              initial={draft?.policy ?? published?.policy}
+              capabilities={published!.policy.capabilities}
               defaultVersion={nextVersion}
             />
           </section>
         </div>
       </main>
     );
-  } finally {
-    await store.close();
-  }
+  });
 }

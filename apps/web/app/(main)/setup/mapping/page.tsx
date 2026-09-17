@@ -1,18 +1,17 @@
 import Link from 'next/link';
 import { loadFixtures } from '@reconcile/fixtures';
-import { createStore, seedFromFixtures } from '@reconcile/store';
+import { withProject } from '../../../../lib/state';
+import { requireSession } from '../../../../lib/auth';
 import { MappingPanel } from '../../../../components/MappingPanel';
 
 export const dynamic = 'force-dynamic';
 
 export default async function MappingPage() {
+  const session = await requireSession();
   const fx = loadFixtures();
-  const store = createStore();
-  try {
-    await store.migrate();
-    await seedFromFixtures(store, fx);
-    const published = (await store.getPublishedPolicy())?.policy ?? fx.policy;
-    const draft = await store.getPolicyDraft();
+  return withProject(session.projectId, async (_store, ps) => {
+    const published = (await ps.getPublishedPolicy())?.policy ?? fx.policy;
+    const draft = await ps.getPolicyDraft();
     const publishedMap = new Map(published.priceMappings.map((m) => [m.priceId, m]));
 
     return (
@@ -101,7 +100,5 @@ export default async function MappingPage() {
         <MappingPanel />
       </main>
     );
-  } finally {
-    await store.close();
-  }
+  });
 }

@@ -95,9 +95,18 @@ export function reconcileIncidents(
       lastConfirmedAt: now,
       occurrences,
       state,
+      workflow: prevEntry?.workflow,
       snapshot: det.snapshot,
     };
-    incidents.push({ id, ...det.snapshot, state, firstSeenAt, lastConfirmedAt: now, occurrences });
+    incidents.push({
+      id,
+      ...det.snapshot,
+      state,
+      workflow: prevEntry?.workflow,
+      firstSeenAt,
+      lastConfirmedAt: now,
+      occurrences,
+    });
   }
 
   const byAccount = new Map(assessments.map((a) => [a.accountId, a]));
@@ -152,6 +161,7 @@ export function reconcileIncidents(
         ...snap,
         state: 'resolved',
         resolutionReason: entry.resolutionReason,
+        workflow: entry.workflow,
         firstSeenAt: entry.firstSeenAt,
         lastConfirmedAt: entry.lastConfirmedAt,
         occurrences: entry.occurrences,
@@ -171,6 +181,7 @@ export function reconcileIncidents(
       state: entry.state,
       resolutionReason: entry.resolutionReason,
       evidenceStale: entry.evidenceStale,
+      workflow: entry.workflow,
       firstSeenAt: entry.firstSeenAt,
       lastConfirmedAt: entry.lastConfirmedAt,
       occurrences: entry.occurrences,

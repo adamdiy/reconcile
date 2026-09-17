@@ -6,6 +6,14 @@ import { seedFromFixtures } from '@reconcile/store';
 import type { SourceOrigin, SourceSnapshot } from '@reconcile/store';
 import { runAssessment, withStore } from './state';
 
+function projectFor(req: NextRequest): string {
+  return (
+    req.nextUrl.searchParams.get('project') ??
+    req.headers.get('x-reconcile-project') ??
+    'default'
+  );
+}
+
 function authorized(req: NextRequest): NextResponse | null {
   const token = process.env.RECONCILE_INGEST_TOKEN;
   if (token) {
@@ -37,9 +45,11 @@ export async function handleIngest<S extends { observedAt: string }>(
     return NextResponse.json({ error: 'invalid inventory', issues: parsed.error.issues }, { status: 400 });
   const incoming = parsed.data;
 
+  const projectId = projectFor(req);
   const earlyResponse = await withStore(async (store) => {
     await seedFromFixtures(store, loadFixtures());
-    const existing = await store.getSources();
+    const ps = store.forProject(projectId);
+    const existing = await ps.getSources();
     if (existing && incoming.observedAt < existing[side].observedAt)
       return NextResponse.json(
         { error: 'stale snapshot', storedObservedAt: existing[side].observedAt },
@@ -65,12 +75,12 @@ export async function handleIngest<S extends { observedAt: string }>(
       origin: 'connector',
       origins: { ...origins, [side]: 'connector' as SourceOrigin },
     };
-    await store.putSources(next);
+    await ps.putSources(next);
     return null;
   });
   if (earlyResponse) return earlyResponse;
 
-  const snap = await runAssessment({ record: true });
+  const snap = await runAssessment({ record: true, projectId });
   return NextResponse.json({
     ok: true,
     runId: `run_${snap.evaluatedAt}`,
