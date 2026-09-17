@@ -1,0 +1,8 @@
+{
+  "id": "sub_001",
+  "customer": "cus_001",
+  "status": "active",
+  "items": { "data": [{ "price": { "id": "price_basic", "unit_amount": 2000 }, "quantity": 1 }] },
+  "current_period_end": 1790812800,
+  "cancel_at_period_end": false
+}

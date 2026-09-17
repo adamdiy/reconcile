@@ -1,0 +1,10 @@
+{
+  "id": "sub_004",
+  "customer": { "id": "cus_004" },
+  "status": "active",
+  "items": { "data": [{ "price": { "id": "price_pro", "unit_amount": 5000 }, "quantity": 2 }] },
+  "schedule": "sub_sched_1",
+  "pause_collection": { "behavior": "void" },
+  "cancel_at_period_end": true,
+  "cancel_at": 1793404800
+}
