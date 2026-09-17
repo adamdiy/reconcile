@@ -78,6 +78,7 @@ export async function runAssessment(
         app: fixtures.app,
         importedAt: evaluatedAt,
         origin: 'fixtures',
+        origins: { stripe: 'fixtures', app: 'fixtures' },
       });
     }
     const sources = (await store.getSources()) ?? {
@@ -85,6 +86,7 @@ export async function runAssessment(
       app: fixtures.app,
       importedAt: evaluatedAt,
       origin: 'fixtures' as const,
+      origins: { stripe: 'fixtures' as const, app: 'fixtures' as const },
     };
     const publishedPolicy = await store.getPublishedPolicy();
     const policy = publishedPolicy?.policy ?? fixtures.policy;

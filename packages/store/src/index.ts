@@ -22,11 +22,14 @@ export interface PolicyDraft {
   policy: Policy;
   updatedAt: string;
 }
+export type SourceOrigin = 'fixtures' | 'connector';
 export interface SourceSnapshot {
   stripe: StripeInventory;
   app: AppInventory;
   importedAt: string;
-  origin: 'fixtures' | 'connector';
+  origin: SourceOrigin;
+  /** Per-side origin; falls back to `origin` for both when absent. */
+  origins?: { stripe: SourceOrigin; app: SourceOrigin };
 }
 export interface AssessmentRun {
   id: string;
@@ -331,5 +334,6 @@ export async function seedFromFixtures(store: Store, fixtures: FixtureSeed): Pro
       app: fixtures.app,
       importedAt: new Date().toISOString(),
       origin: 'fixtures',
+      origins: { stripe: 'fixtures', app: 'fixtures' },
     });
 }

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { runAssessment, settlingMinutes } from '../../lib/state';
 import { coverageIncidents } from '../../lib/coverage';
 import { RecheckButton } from '../../components/RecheckButton';
+import { ImportFixturesButton } from '../../components/ImportFixturesButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,11 @@ const BUCKET_LABELS = [
 
 export default async function OverviewPage() {
   const snap = await runAssessment();
+  const origins = snap.sources.origins ?? {
+    stripe: snap.sources.origin,
+    app: snap.sources.origin,
+  };
+  const simulated = origins.stripe === 'fixtures' && origins.app === 'fixtures';
   const coverage = coverageIncidents(snap.assessments);
   const counts = [0, 0, 0, 0, 0];
   const partial = new Set<string>();
@@ -31,19 +37,40 @@ export default async function OverviewPage() {
 
   return (
     <main>
-      <div className="mb-4 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm">
-        Simulated sources — fixture data
-      </div>
+      {simulated ? (
+        <div className="mb-4 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm">
+          Simulated sources — fixture data
+        </div>
+      ) : (
+        <div className="mb-4 rounded border border-green-300 bg-green-50 px-3 py-2 text-sm">
+          Live connector data — last import {snap.sources.importedAt}
+        </div>
+      )}
       <div className="mb-6 grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
         <div>
-          <div className="text-gray-500">Stripe inventory</div>
+          <div className="text-gray-500">
+            Stripe inventory <span className="text-xs">({origins.stripe})</span>
+          </div>
           <div className="font-mono text-xs">{snap.sources.stripe.runId}</div>
           <div className="font-mono text-xs">{snap.sources.stripe.observedAt}</div>
+          {!snap.sources.stripe.complete && (
+            <div className="text-xs text-red-600">incomplete inventory</div>
+          )}
+          {snap.sources.stripe.permissionsMissing.length > 0 && (
+            <div className="text-xs text-red-600">
+              missing permissions: {snap.sources.stripe.permissionsMissing.join(', ')}
+            </div>
+          )}
         </div>
         <div>
-          <div className="text-gray-500">App inventory</div>
+          <div className="text-gray-500">
+            App inventory <span className="text-xs">({origins.app})</span>
+          </div>
           <div className="font-mono text-xs">{snap.sources.app.runId}</div>
           <div className="font-mono text-xs">{snap.sources.app.observedAt}</div>
+          {!snap.sources.app.complete && (
+            <div className="text-xs text-red-600">incomplete inventory</div>
+          )}
         </div>
         <div>
           <div className="text-gray-500">Policy version</div>
@@ -105,7 +132,11 @@ export default async function OverviewPage() {
           )}
         </div>
       </div>
-      <RecheckButton />
+      <div className="flex items-center gap-3">
+        <RecheckButton />
+        <ImportFixturesButton />
+        <span className="text-xs text-gray-500">Import fixtures is a simulated collector</span>
+      </div>
     </main>
   );
 }
