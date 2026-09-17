@@ -1,0 +1,20 @@
+[
+  {
+    "id": "ex_001",
+    "accountId": "acct_003",
+    "capability": "exports",
+    "expected": true,
+    "reason": "CS comped exports while card is being updated",
+    "owner": "ops@example.com",
+    "expiresAt": "2026-12-01T00:00:00Z"
+  },
+  {
+    "id": "ex_002",
+    "accountId": "acct_005",
+    "capability": "exports",
+    "expected": true,
+    "reason": "expired legacy grant kept for history",
+    "owner": "ops@example.com",
+    "expiresAt": "2026-08-01T00:00:00Z"
+  }
+]

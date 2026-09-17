@@ -11,13 +11,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: test -z "$(git ls-files 'packages/*/src/*.js' 'packages/*/src/*.d.ts' 'packages/*/src/*.map')"
+        name: no committed build artifacts
+      - run: pnpm -r --filter './packages/*' build
+        name: build packages (types needed by dependents)
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test

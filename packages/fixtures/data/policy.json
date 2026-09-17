@@ -1,0 +1,12 @@
+{
+  "version": "v1-2026-09-16",
+  "ruleIdPrefix": "plan",
+  "capabilities": ["reports", "exports", "priority_support"],
+  "priceMappings": [
+    { "ruleId": "plan:pro", "priceId": "price_pro", "capabilities": ["reports", "exports", "priority_support"] },
+    { "ruleId": "plan:basic", "priceId": "price_basic", "capabilities": ["reports"] },
+    { "ruleId": "plan:free", "priceId": "price_free", "capabilities": ["reports"] }
+  ],
+  "lifecycle": { "pastDueGraceHours": 720, "trialGrantsAccess": true },
+  "freshness": { "maxEvidenceAgeMinutes": 2880 }
+}

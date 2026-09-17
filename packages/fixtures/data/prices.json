@@ -1,0 +1,6 @@
+[
+  { "id": "price_pro", "nickname": "Pro monthly", "unitAmount": 4900, "currency": "usd" },
+  { "id": "price_basic", "nickname": "Basic monthly", "unitAmount": 1900, "currency": "usd" },
+  { "id": "price_free", "nickname": "Free / 100% coupon", "unitAmount": 0, "currency": "usd" },
+  { "id": "price_addon", "nickname": "Add-on seats", "unitAmount": 500, "currency": "usd" }
+]
