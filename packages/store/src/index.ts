@@ -276,10 +276,15 @@ export class PostgresStore implements Store {
     return out;
   }
   async putIncidents(s: Record<string, StoredIncident>) {
-    await this.sql`DELETE FROM incidents`;
-    for (const [fp, inc] of Object.entries(s)) {
-      await this.sql`INSERT INTO incidents (fingerprint, payload) VALUES (${fp}, ${this.j(inc)})`;
-    }
+    const rows = Object.entries(s).map(([fingerprint, inc]) => ({ fingerprint, payload: inc }));
+    await this.sql.begin(async (tx) => {
+      await tx`DELETE FROM incidents`;
+      if (rows.length > 0) {
+        await tx`INSERT INTO incidents (fingerprint, payload)
+          SELECT * FROM jsonb_to_recordset(${tx.json(rows)}::jsonb)
+            AS x(fingerprint text, payload jsonb)`;
+      }
+    });
   }
   async recordRun(r: AssessmentRun) {
     await this.sql`INSERT INTO runs (id, evaluated_at, payload) VALUES (${r.id}, ${r.evaluatedAt}, ${this.j(r)})

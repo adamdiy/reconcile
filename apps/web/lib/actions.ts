@@ -10,12 +10,12 @@ import type { PolicyDraft } from '@reconcile/store';
 import { runAssessment, withStore } from './state';
 
 async function refresh(): Promise<void> {
-  await runAssessment();
+  await runAssessment({ record: true });
   revalidatePath('/', 'layout');
 }
 
 export async function recheck(): Promise<void> {
-  await runAssessment({ reimportSources: true });
+  await runAssessment({ reimportSources: true, record: true });
   revalidatePath('/', 'layout');
 }
 

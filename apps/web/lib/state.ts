@@ -65,7 +65,9 @@ export interface AssessmentSnapshot {
   evaluatedAt: string;
 }
 
-export async function runAssessment(opts: { reimportSources?: boolean } = {}): Promise<AssessmentSnapshot> {
+export async function runAssessment(
+  opts: { reimportSources?: boolean; record?: boolean } = {},
+): Promise<AssessmentSnapshot> {
   const fixtures = loadFixtures();
   return withStore(async (store) => {
     await seedFromFixtures(store, fixtures);
@@ -140,19 +142,21 @@ export async function runAssessment(opts: { reimportSources?: boolean } = {}): P
         totalPairs += 1;
         if (f.kind !== 'unknown') coveredPairs += 1;
       }
-    await store.recordRun({
-      id: `run_${evaluatedAt}`,
-      evaluatedAt,
-      policyVersion: policy.version,
-      engineVersion: ENGINE_VERSION,
-      counts: {
-        population: assessments.length,
-        buckets: bucketCounts,
-        coveredPairs,
-        totalPairs,
-        incidentsOpen: incidents.filter((i) => i.state !== 'resolved').length,
-      },
-    });
+    if (opts.record) {
+      await store.recordRun({
+        id: `run_${evaluatedAt}`,
+        evaluatedAt,
+        policyVersion: policy.version,
+        engineVersion: ENGINE_VERSION,
+        counts: {
+          population: assessments.length,
+          buckets: bucketCounts,
+          coveredPairs,
+          totalPairs,
+          incidentsOpen: incidents.filter((i) => i.state !== 'resolved').length,
+        },
+      });
+    }
 
     return {
       fixtures,
