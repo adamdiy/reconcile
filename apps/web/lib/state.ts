@@ -128,6 +128,8 @@ export async function runAssessment(
       bucketCounts, coveredPairs, totalPairs, unknownReasons, nextTransitionAt,
     } = ev;
     await ps.putIncidents(stored);
+    const { verifyRepairs } = await import('./repairs');
+    await verifyRepairs(ps, assessments);
 
     if (opts.record) {
       await ps.recordRun({

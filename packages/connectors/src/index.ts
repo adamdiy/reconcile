@@ -6,6 +6,8 @@ import { loadFixtures, fixturesDir } from '@reconcile/fixtures';
 export interface StripeConnector {
   collect(): Promise<StripeInventory>;
 }
+// Provider-neutral alias.
+export type BillingConnector = StripeConnector;
 
 interface StripeListPage<T> {
   data: T[];
@@ -231,6 +233,7 @@ export class StripeApiConnector implements StripeConnector {
 
     return {
       runId,
+      provider: 'stripe',
       complete,
       observedAt,
       permissionsMissing,
@@ -252,4 +255,23 @@ export class FixtureStripeConnector implements StripeConnector {
 export function createStripeConnector(env: NodeJS.ProcessEnv = process.env): StripeConnector {
   if (env.STRIPE_SECRET_KEY) return new StripeApiConnector({ apiKey: env.STRIPE_SECRET_KEY });
   return new FixtureStripeConnector();
+}
+
+/** Select the billing connector by RECONCILE_BILLING_PROVIDER (default: stripe). */
+export async function createBillingConnector(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<StripeConnector> {
+  const provider = env.RECONCILE_BILLING_PROVIDER ?? 'stripe';
+  if (provider === 'chargebee' && env.CHARGEBEE_SITE && env.CHARGEBEE_API_KEY) {
+    const { ChargebeeConnector } = await import('./providers.js');
+    return new ChargebeeConnector({ site: env.CHARGEBEE_SITE, apiKey: env.CHARGEBEE_API_KEY });
+  }
+  if (provider === 'paddle' && env.PADDLE_API_KEY) {
+    const { PaddleConnector } = await import('./providers.js');
+    return new PaddleConnector({
+      apiKey: env.PADDLE_API_KEY,
+      env: env.PADDLE_ENV === 'sandbox' ? 'sandbox' : 'production',
+    });
+  }
+  return createStripeConnector(env);
 }

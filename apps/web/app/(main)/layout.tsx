@@ -35,6 +35,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <Link href="/jobs">Jobs</Link>
               <Link href="/notifications">Outbox</Link>
               <Link href="/audit">Audit</Link>
+              <Link href="/repairs">Repairs</Link>
               <Link href="/metrics">Metrics</Link>
               <Link href="/setup/policy">Policy</Link>
               <Link href="/setup/exceptions">Exceptions</Link>

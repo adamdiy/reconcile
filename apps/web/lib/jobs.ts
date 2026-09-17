@@ -9,6 +9,7 @@ import { loadFixtures } from '@reconcile/fixtures';
 import type { Job, NotificationRule } from '@reconcile/domain';
 import { createStore, runAssessment } from './state';
 import { mergeSourceSnapshot } from './ingest';
+import { executeRepair } from './repairs';
 
 async function assessHandler(job: Job): Promise<void> {
   await runAssessment({ record: true, projectId: job.projectId });
@@ -60,11 +61,42 @@ async function digestHandler(job: Job, store: Store): Promise<void> {
     if (rule.enabled) await channelFor(rule).send(notification);
 }
 
+async function repairHandler(job: Job, store: Store): Promise<void> {
+  const ps = store.forProject(job.projectId);
+  const actionId = job.payload.repairActionId as string;
+  const action = await ps.getRepairAction(actionId);
+  if (!action) throw new Error(`unknown repair action ${actionId}`);
+  const done = await executeRepair(ps, actionId, {
+    evaluateAccount: async (accountId, capability) => {
+      const snap = await runAssessment({ record: false, projectId: job.projectId });
+      const a = snap.assessments.find((x) => x.accountId === accountId);
+      const f = a?.features.find((x) => x.feature === capability);
+      return {
+        observed:
+          f?.kind === 'unknown' || !f
+            ? undefined
+            : f.kind === 'mismatch'
+              ? f.observed
+              : f.expected,
+        fresh: !(f?.kind === 'unknown' && f.reasons.includes('stale_evidence')),
+        matches: f?.kind === 'match',
+      };
+    },
+  });
+  if (done.state === 'failed')
+    throw new Error(done.log.at(-1)?.detail ?? 'repair execution failed');
+  if (done.state === 'executed')
+    await store.enqueueJob(
+      newJob('assess', job.projectId, `assess:${job.projectId}:repair:${actionId}`, new Date().toISOString()),
+    );
+}
+
 export const jobHandlers: JobHandlers = {
   assess: (job) => assessHandler(job),
   stripe_sync: (job, store) => stripeSyncHandler(job, store),
   notify: (job, store) => notifyHandler(job, store),
   digest: (job, store) => digestHandler(job, store),
+  repair: (job, store) => repairHandler(job, store),
 };
 
 /** Enqueue a manual "Run now" assessment for the project. */

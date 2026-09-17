@@ -8,6 +8,9 @@ import { ExplainButton } from '../../../../components/ExplainButton';
 import { explainIncident } from '../../../../lib/ai-actions';
 import { describeProvider } from '@reconcile/ai';
 import { getSession } from '../../../../lib/auth';
+import { ProposeRepair } from '../../../../components/ProposeRepair';
+import { proposeRepairAction } from '../../../../lib/repair-actions';
+import { withProject } from '../../../../lib/state';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +41,9 @@ export default async function IncidentDetailPage({
     (e) => e.accountId === inc.accountId && (inc.feature === '*' || e.capability === inc.feature),
   );
   const rule = snap.policy.priceMappings.find((m) => m.ruleId === inc.ruleId);
+  const repairCommands = await withProject(session?.projectId ?? 'default', async (_s, ps) =>
+    ps.listRepairCommands(),
+  );
 
   const explanation =
     inc.state === 'confirmed'
@@ -195,6 +201,24 @@ export default async function IncidentDetailPage({
           </ul>
         </section>
       )}
+
+      {inc.kind === 'mismatch' && inc.state !== 'resolved' && inc.expected !== undefined &&
+        (session?.role === 'reviewer' || session?.role === 'admin') && (
+          <section className="mt-4 rounded border p-4">
+            <h2 className="mb-2 font-medium">Propose repair (advisory)</h2>
+            <p className="mb-2 text-xs text-gray-500">
+              Executes the customer's own command after four-eyes approval; Reconcile never
+              writes to the app directly.
+            </p>
+            <ProposeRepair
+              incidentId={inc.id}
+              commands={repairCommands
+                .filter((c) => c.capabilities.includes(inc.feature))
+                .map((c) => ({ id: c.id, name: c.name, capabilities: c.capabilities }))}
+              action={proposeRepairAction}
+            />
+          </section>
+        )}
 
       <WorkflowPanel id={inc.id} workflow={inc.workflow} role={session?.role ?? 'viewer'} />
 

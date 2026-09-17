@@ -150,6 +150,7 @@ export type StripeCustomerFact = z.infer<typeof StripeCustomerFactSchema>;
 
 export const StripeInventorySchema = z.object({
   runId: z.string(),
+  provider: z.enum(['stripe', 'chargebee', 'paddle']).default('stripe'),
   complete: z.boolean(),
   observedAt: IsoInstant,
   permissionsMissing: z.array(z.string()),
@@ -157,6 +158,9 @@ export const StripeInventorySchema = z.object({
   subscriptions: z.array(StripeSubscriptionFactSchema),
 });
 export type StripeInventory = z.infer<typeof StripeInventorySchema>;
+// Provider-neutral alias — the inventory shape is shared across billing providers.
+export const BillingInventorySchema = StripeInventorySchema;
+export type BillingInventory = StripeInventory;
 
 export const LocalBillingRecordSchema = z.object({
   localId: z.string(),
@@ -327,7 +331,7 @@ export const IncidentSchema = IncidentSnapshotSchema.extend({
 });
 export type Incident = z.infer<typeof IncidentSchema>;
 
-export const JobKindSchema = z.enum(['assess', 'stripe_sync', 'notify', 'digest']);
+export const JobKindSchema = z.enum(['assess', 'stripe_sync', 'notify', 'digest', 'repair']);
 export type JobKind = z.infer<typeof JobKindSchema>;
 
 export const JobStatusSchema = z.enum(['queued', 'running', 'succeeded', 'failed', 'dead']);
@@ -424,3 +428,51 @@ export const AuditBaselineSchema = z.object({
   }),
 });
 export type AuditBaseline = z.infer<typeof AuditBaselineSchema>;
+
+export const RepairCommandSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  kind: z.enum(['http', 'local_outbox']),
+  http: z
+    .object({
+      method: z.string(),
+      urlTemplate: z.string(),
+      headers: z.record(z.string()).optional(),
+      bodyTemplate: z.string().optional(),
+    })
+    .optional(),
+  capabilities: z.array(z.string()),
+  description: z.string().optional(),
+});
+export type RepairCommand = z.infer<typeof RepairCommandSchema>;
+
+export const RepairActionStateSchema = z.enum([
+  'proposed',
+  'approved',
+  'rejected',
+  'executing',
+  'executed',
+  'verified',
+  'failed',
+  'expired',
+]);
+export type RepairActionState = z.infer<typeof RepairActionStateSchema>;
+
+export const RepairActionSchema = z.object({
+  id: z.string(),
+  incidentId: z.string(),
+  accountId: z.string(),
+  capability: z.string(),
+  desired: z.boolean(),
+  commandId: z.string(),
+  state: RepairActionStateSchema,
+  proposedBy: z.string(),
+  proposedAt: IsoInstant,
+  approvedBy: z.string().optional(),
+  approvedAt: IsoInstant.optional(),
+  expiresAt: IsoInstant,
+  idempotencyKey: z.string(),
+  preconditions: z.object({ observed: z.boolean(), evidenceIds: z.array(z.string()) }),
+  log: z.array(z.object({ at: IsoInstant, event: z.string(), detail: z.string().optional() })),
+});
+export type RepairAction = z.infer<typeof RepairActionSchema>;
