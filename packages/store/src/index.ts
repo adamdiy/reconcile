@@ -614,9 +614,13 @@ export class PostgresStore implements Store {
   }
 
   async migrate(): Promise<void> {
+    // Transaction-scoped advisory lock: pooled connections make session-level locks unsafe.
     const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../sql');
-    for (const f of ['001_init.sql', '002_tenancy.sql', '003_jobs.sql'])
-      await this.sql.unsafe(readFileSync(path.join(dir, f), 'utf8'));
+    await this.sql.begin(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(727272)`;
+      for (const f of ['001_init.sql', '002_tenancy.sql', '003_jobs.sql'])
+        await tx.unsafe(readFileSync(path.join(dir, f), 'utf8'));
+    });
   }
   async close(): Promise<void> {
     await this.sql.end();

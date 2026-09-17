@@ -10,8 +10,9 @@ const stateDir = mkdtempSync(path.join(tmpdir(), 'reconcile-webhook-'));
 
 let POST: (req: NextRequest) => Promise<Response>;
 
+const EVENT_ID = `evt_test_${Date.now()}`;
 const payload = JSON.stringify({
-  id: `evt_test_${Date.now()}`,
+  id: EVENT_ID,
   object: 'event',
   type: 'customer.subscription.updated',
   data: { object: { id: 'sub_001' } },
@@ -48,10 +49,12 @@ describe('POST /api/webhooks/stripe', () => {
     expect(body.ok).toBe(true);
     const { createStore } = await import('@reconcile/store');
     const store = createStore();
-    const events = await store.listWebhookEvents('default');
+    const events = (await store.listWebhookEvents('default')).filter(
+      (e) => e.eventId === EVENT_ID,
+    );
     expect(events).toHaveLength(1);
     const jobs = await store.listJobs('default');
-    expect(jobs.some((j) => j.kind === 'stripe_sync' && j.idempotencyKey.includes('evt_test_'))).toBe(true);
+    expect(jobs.some((j) => j.kind === 'stripe_sync' && j.idempotencyKey.includes(EVENT_ID))).toBe(true);
     await store.close();
   });
 
@@ -61,7 +64,9 @@ describe('POST /api/webhooks/stripe', () => {
     expect((await res.json()).duplicate).toBe(true);
     const { createStore } = await import('@reconcile/store');
     const store = createStore();
-    const jobs = (await store.listJobs('default')).filter((j) => j.kind === 'stripe_sync');
+    const jobs = (await store.listJobs('default')).filter(
+      (j) => j.kind === 'stripe_sync' && j.idempotencyKey.includes(EVENT_ID),
+    );
     expect(jobs).toHaveLength(1);
     await store.close();
   });
