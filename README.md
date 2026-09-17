@@ -40,10 +40,34 @@ pnpm typecheck && pnpm lint
    exceptions, confirmation explanation, hypothesis-labelled causes.
 5. `/setup/mapping` — "Suggest mapping" uses `OPENAI_API_KEY`+`OPENAI_BASE_URL`
    or `ANTHROPIC_API_KEY` if present, else a deterministic stub (labelled as
-   such). "Confirm" writes `apps/web/.reconcile/policy-draft.json` and diffs it against
-   the published fixture policy.
+   such). "Confirm" upserts the suggestion into the policy draft (`/setup/policy`),
+   which only affects results once published.
 6. Recheck demo: set `access` to `false` for `acct_004` in
    `packages/fixtures/data/app.json` (or to match expectation), click Recheck on
    the overview or the incident detail — the incident resolves with reason
    `verified_remediated`. Restore the fixture and Recheck again to reopen it as
    a candidate (confirmed after `SETTLING_MINUTES`, default 0 for the demo).
+
+## Optional: Postgres
+
+By default state lives in `apps/web/.reconcile/*.json` via `JsonFileStore`. To run
+against Postgres instead:
+
+```sh
+docker compose up -d
+DATABASE_URL=postgres://reconcile:reconcile@localhost:5432/reconcile pnpm dev
+```
+
+`PostgresStore.migrate()` applies `packages/store/sql/001_init.sql` idempotently.
+`seedFromFixtures` only seeds empty collections, so your published policies,
+links, exceptions and imported sources survive restarts in either backend.
+
+## Environment
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SETTLING_MINUTES` | `0` | Minutes a candidate incident must persist before it confirms |
+| `DATABASE_URL` | unset | When set, use PostgresStore instead of JSON files |
+| `RECONCILE_STATE_DIR` | `apps/web/.reconcile` | JSON store directory |
+| `OPENAI_API_KEY` / `OPENAI_BASE_URL` | unset | Enable the OpenAI-compatible mapping suggester |
+| `ANTHROPIC_API_KEY` | unset | Enable the Anthropic mapping suggester |

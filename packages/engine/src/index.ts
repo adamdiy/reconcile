@@ -1,13 +1,17 @@
 import type {
   AccountAssessment,
   AccountObservation,
+  CheckKind,
   EvaluationInput,
   FeatureEvaluation,
   IntegrityFinding,
+  Severity,
   StripeSubscriptionFact,
   UnknownReason,
 } from '@reconcile/domain';
 import { createHash } from 'node:crypto';
+
+export type { CheckKind, Severity };
 
 export const ENGINE_VERSION = '0.1.0-hackathon';
 
@@ -99,16 +103,6 @@ export function buildPopulation(input: EvaluationInput): Subject[] {
   }
   return [...subjects.values()].sort((a, b) => (a.accountId < b.accountId ? -1 : 1));
 }
-
-export type CheckKind =
-  | 'unexpected_feature_enabled'
-  | 'expected_feature_missing'
-  | 'wrong_feature_set'
-  | 'duplicate_local_identity'
-  | 'coverage_gap'
-  | 'monitoring_health';
-
-export type Severity = 'low' | 'medium' | 'high';
 
 export interface SeverityContext {
   subscriptionState?: 'active_or_trialing' | 'grace' | 'other';

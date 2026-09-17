@@ -1,51 +1,15 @@
 import { fingerprint, deriveSeverity } from '@reconcile/engine';
-import type { CheckKind, Severity } from '@reconcile/engine';
-import type { AccountAssessment, FeatureEvaluation } from '@reconcile/domain';
+import type { CheckKind, Severity } from '@reconcile/domain';
+import type {
+  AccountAssessment,
+  FeatureEvaluation,
+  Incident,
+  IncidentState,
+  IncidentSnapshot,
+  StoredIncident,
+} from '@reconcile/domain';
 
-export type IncidentState = 'candidate' | 'confirmed' | 'resolved';
-
-export interface Incident {
-  id: string;
-  accountId: string;
-  ruleId: string;
-  feature: string;
-  check: CheckKind;
-  kind: 'mismatch' | 'integrity' | 'coverage' | 'health';
-  severity: Severity;
-  state: IncidentState;
-  firstSeenAt: string;
-  lastConfirmedAt: string;
-  occurrences: number;
-  expected?: boolean;
-  observed?: boolean;
-  reasons?: string[];
-  evidenceIds: string[];
-  resolutionReason?: string;
-  evidenceStale?: boolean;
-}
-
-export interface IncidentSnapshot {
-  accountId: string;
-  ruleId: string;
-  feature: string;
-  check: CheckKind;
-  kind: Incident['kind'];
-  severity: Severity;
-  expected?: boolean;
-  observed?: boolean;
-  reasons?: string[];
-  evidenceIds: string[];
-}
-
-export interface StoredIncident {
-  firstSeenAt: string;
-  lastConfirmedAt: string;
-  occurrences: number;
-  state: IncidentState;
-  resolutionReason?: string;
-  evidenceStale?: boolean;
-  snapshot: IncidentSnapshot;
-}
+export type { CheckKind, Incident, IncidentState, IncidentSnapshot, Severity, StoredIncident };
 
 export function checkFor(f: FeatureEvaluation): CheckKind {
   if (f.kind === 'mismatch')
