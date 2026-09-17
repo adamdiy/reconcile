@@ -31,7 +31,11 @@ pnpm typecheck && pnpm lint
 
 ## Demo script
 
-1. `pnpm dev`, open http://localhost:3000 — banner marks sources as simulated.
+1. `pnpm dev`, open http://localhost:3000 — sign in as `admin@local` / `reconcile`
+   (seeded admin; password override via `RECONCILE_ADMIN_PASSWORD`). The banner
+   marks sources as simulated. Roles: `viewer` (read-only), `reviewer`
+   (identity links, exceptions, incident workflow, recheck), `admin`
+   (publish policy, manage users/projects).
 2. Overview shows the four disjoint buckets, coverage counts, detection envelope.
 3. `/incidents` lists mismatches (e.g. `acct_004` unexpected access, `acct_005`
    expected feature missing, `acct_008` duplicate local identity, `acct_010`
@@ -91,3 +95,5 @@ on live data instead of fixtures.
 | `STRIPE_SECRET_KEY` | unset | `reconcile-stripe-sync`: collect via the Stripe API instead of fixtures |
 | `RECONCILE_URL` | `http://localhost:3000` | Base URL the CLIs post inventories to |
 | `APP_DATABASE_URL` | unset | Referenced by collector configs as `env:APP_DATABASE_URL` |
+| `RECONCILE_SESSION_SECRET` | dev default | HMAC key for session cookies — set in any shared deployment |
+| `RECONCILE_ADMIN_PASSWORD` | `reconcile` | Password for the seeded `admin@local` user |

@@ -10,6 +10,8 @@ description: Run fixture-backed Reconcile demo browser checks, including inciden
 - Determine the running Next process working directory before checking `.reconcile` files: persistence is currently relative to `process.cwd()`. Workspace startup can place files under `apps/web/.reconcile`, not repo root.
 
 # Browser checks
+- All pages require login: sign in at /login as `admin@local` / `reconcile` (admin; other seeded users `rev@local` reviewer, `viewer@local` viewer, same password). Unauthenticated pages redirect to /login. Mutating buttons are hidden for viewer.
+- Fixture population is 12 accounts (11 app accounts + acct_012 paused + synthetic where applicable); acct_009's multi-item sub is a supported match, acct_012 yields an unexpected_feature_enabled mismatch.
 - Overview → Recheck re-evaluates the stored sources; **Import fixtures** (simulated collector) reloads fixture files into the store. To pick up edited fixture JSON, click Import fixtures first, then Recheck. Navigating dynamic pages also reevaluates; default zero-minute settling can confirm candidates before they are visually captured.
 - Incident inbox check/severity/state selects combine filters; account links and check links lead to different pages.
 - Choose an account with exactly one feature mismatch for remediation so fixing one flag also changes account bucket totals. `acct_005` exports is an example in the original fixtures.

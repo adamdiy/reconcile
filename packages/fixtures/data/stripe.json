@@ -4,24 +4,78 @@
   "observedAt": "2026-09-16T18:00:00Z",
   "permissionsMissing": [],
   "customers": [
-    { "id": "cus_001", "deleted": false, "observedAt": "2026-09-16T18:00:00Z" },
-    { "id": "cus_002", "deleted": false, "observedAt": "2026-09-16T18:00:00Z" },
-    { "id": "cus_003", "deleted": false, "observedAt": "2026-09-16T18:00:00Z" },
-    { "id": "cus_004", "deleted": false, "observedAt": "2026-09-16T18:00:00Z" },
-    { "id": "cus_005", "deleted": false, "observedAt": "2026-09-16T18:00:00Z" },
-    { "id": "cus_006", "deleted": false, "observedAt": "2026-09-16T18:00:00Z" },
-    { "id": "cus_007", "deleted": false, "observedAt": "2026-09-16T18:00:00Z" },
-    { "id": "cus_008", "deleted": false, "observedAt": "2026-09-16T18:00:00Z" },
-    { "id": "cus_009", "deleted": false, "observedAt": "2026-09-16T18:00:00Z" },
-    { "id": "cus_010", "deleted": false, "observedAt": "2026-09-16T18:00:00Z" },
-    { "id": "cus_011", "deleted": false, "observedAt": "2026-09-16T18:00:00Z" }
+    {
+      "id": "cus_001",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "cus_002",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "cus_003",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "cus_004",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "cus_005",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "cus_006",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "cus_007",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "cus_008",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "cus_009",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "cus_010",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "cus_011",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "cus_012",
+      "deleted": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    }
   ],
   "subscriptions": [
     {
       "id": "sub_001",
       "customerId": "cus_001",
       "status": "active",
-      "items": [{ "priceId": "price_pro", "quantity": 1 }],
+      "items": [
+        {
+          "priceId": "price_pro",
+          "quantity": 1
+        }
+      ],
       "cancelAtPeriodEnd": false,
       "currentPeriodEnd": "2026-10-01T00:00:00Z",
       "observedAt": "2026-09-16T18:00:00Z"
@@ -30,7 +84,12 @@
       "id": "sub_002",
       "customerId": "cus_002",
       "status": "trialing",
-      "items": [{ "priceId": "price_pro", "quantity": 1 }],
+      "items": [
+        {
+          "priceId": "price_pro",
+          "quantity": 1
+        }
+      ],
       "cancelAtPeriodEnd": false,
       "trialEnd": "2026-09-28T00:00:00Z",
       "observedAt": "2026-09-16T18:00:00Z"
@@ -39,7 +98,12 @@
       "id": "sub_003",
       "customerId": "cus_003",
       "status": "past_due",
-      "items": [{ "priceId": "price_basic", "quantity": 1 }],
+      "items": [
+        {
+          "priceId": "price_basic",
+          "quantity": 1
+        }
+      ],
       "cancelAtPeriodEnd": false,
       "firstFailedInvoiceDueAt": "2026-09-15T00:00:00Z",
       "observedAt": "2026-09-16T18:00:00Z"
@@ -48,7 +112,12 @@
       "id": "sub_004",
       "customerId": "cus_004",
       "status": "past_due",
-      "items": [{ "priceId": "price_pro", "quantity": 1 }],
+      "items": [
+        {
+          "priceId": "price_pro",
+          "quantity": 1
+        }
+      ],
       "cancelAtPeriodEnd": false,
       "firstFailedInvoiceDueAt": "2026-08-10T00:00:00Z",
       "observedAt": "2026-09-16T18:00:00Z"
@@ -57,7 +126,12 @@
       "id": "sub_005",
       "customerId": "cus_005",
       "status": "active",
-      "items": [{ "priceId": "price_pro", "quantity": 1 }],
+      "items": [
+        {
+          "priceId": "price_pro",
+          "quantity": 1
+        }
+      ],
       "cancelAtPeriodEnd": true,
       "currentPeriodEnd": "2026-10-10T00:00:00Z",
       "observedAt": "2026-09-16T18:00:00Z"
@@ -66,7 +140,12 @@
       "id": "sub_006",
       "customerId": "cus_006",
       "status": "active",
-      "items": [{ "priceId": "price_pro", "quantity": 1 }],
+      "items": [
+        {
+          "priceId": "price_pro",
+          "quantity": 1
+        }
+      ],
       "cancelAtPeriodEnd": false,
       "observedAt": "2026-08-25T18:00:00Z"
     },
@@ -74,7 +153,12 @@
       "id": "sub_007",
       "customerId": "cus_007",
       "status": "active",
-      "items": [{ "priceId": "price_pro", "quantity": 1 }],
+      "items": [
+        {
+          "priceId": "price_pro",
+          "quantity": 1
+        }
+      ],
       "cancelAtPeriodEnd": false,
       "observedAt": "2026-09-16T18:00:00Z"
     },
@@ -82,7 +166,12 @@
       "id": "sub_008",
       "customerId": "cus_008",
       "status": "active",
-      "items": [{ "priceId": "price_basic", "quantity": 1 }],
+      "items": [
+        {
+          "priceId": "price_basic",
+          "quantity": 1
+        }
+      ],
       "cancelAtPeriodEnd": false,
       "observedAt": "2026-09-16T18:00:00Z"
     },
@@ -91,8 +180,14 @@
       "customerId": "cus_009",
       "status": "active",
       "items": [
-        { "priceId": "price_pro", "quantity": 1 },
-        { "priceId": "price_addon", "quantity": 1 }
+        {
+          "priceId": "price_pro",
+          "quantity": 1
+        },
+        {
+          "priceId": "price_addon",
+          "quantity": 1
+        }
       ],
       "cancelAtPeriodEnd": false,
       "observedAt": "2026-09-16T18:00:00Z"
@@ -101,7 +196,12 @@
       "id": "sub_010",
       "customerId": "cus_010",
       "status": "active",
-      "items": [{ "priceId": "price_pro", "quantity": 1 }],
+      "items": [
+        {
+          "priceId": "price_pro",
+          "quantity": 1
+        }
+      ],
       "cancelAtPeriodEnd": false,
       "observedAt": "2026-09-16T18:00:00Z"
     },
@@ -109,9 +209,27 @@
       "id": "sub_011",
       "customerId": "cus_011",
       "status": "active",
-      "items": [{ "priceId": "price_free", "quantity": 1 }],
+      "items": [
+        {
+          "priceId": "price_free",
+          "quantity": 1
+        }
+      ],
       "cancelAtPeriodEnd": false,
       "zeroValue": true,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "sub_012",
+      "customerId": "cus_012",
+      "status": "paused",
+      "items": [
+        {
+          "priceId": "price_pro",
+          "quantity": 1
+        }
+      ],
+      "cancelAtPeriodEnd": false,
       "observedAt": "2026-09-16T18:00:00Z"
     }
   ]

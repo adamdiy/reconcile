@@ -16,7 +16,18 @@ export default async function IncidentsPage({
   const snap = await runAssessment();
   const rows: Incident[] = [...snap.incidents, ...coverageIncidents(snap.assessments)];
 
+  const now = Date.now();
+  const snoozed = (r: Incident) =>
+    !!r.workflow?.snoozedUntil && Date.parse(r.workflow.snoozedUntil) > now;
+  const accepted = (r: Incident) => !!r.workflow?.acceptedRisk;
+  const tab = sp.filter ?? 'open';
+
   let filtered = rows;
+  if (tab === 'open')
+    filtered = filtered.filter((r) => r.state !== 'resolved' && !snoozed(r) && !accepted(r));
+  else if (tab === 'snoozed') filtered = filtered.filter((r) => snoozed(r));
+  else if (tab === 'accepted') filtered = filtered.filter((r) => accepted(r));
+  else if (tab === 'resolved') filtered = filtered.filter((r) => r.state === 'resolved');
   if (sp.check) filtered = filtered.filter((r) => r.check === sp.check);
   if (sp.severity) filtered = filtered.filter((r) => r.severity === sp.severity);
   if (sp.state) filtered = filtered.filter((r) => r.state === sp.state);
@@ -36,6 +47,17 @@ export default async function IncidentsPage({
   return (
     <main>
       <h1 className="mb-4 text-xl font-semibold">Incident inbox</h1>
+      <div className="mb-3 flex gap-2 text-sm">
+        {(['open', 'snoozed', 'accepted', 'resolved', 'all'] as const).map((t) => (
+          <Link
+            key={t}
+            href={`/incidents?filter=${t}`}
+            className={`rounded border px-2 py-0.5 ${tab === t ? 'bg-gray-900 text-white' : 'text-gray-600'}`}
+          >
+            {t}
+          </Link>
+        ))}
+      </div>
       <Suspense>
         <IncidentFilters />
       </Suspense>
@@ -54,7 +76,7 @@ export default async function IncidentsPage({
         </thead>
         <tbody>
           {filtered.map((r) => (
-            <tr key={r.id} className="border-b">
+            <tr key={r.id} className={`border-b ${snoozed(r) || accepted(r) ? 'text-gray-400' : ''}`}>
               <td className="py-1 pr-3 font-mono text-xs">
                 <Link href={`/accounts/${r.accountId}`} className="underline">
                   {r.accountId}
@@ -72,6 +94,12 @@ export default async function IncidentsPage({
               <td className="py-1 pr-3 font-mono text-xs">{freshnessOf(r.accountId)}</td>
               <td className="py-1 pr-3">
                 {r.state}
+                {snoozed(r) && (
+                  <span className="ml-1 rounded bg-gray-200 px-1 text-xs">snoozed</span>
+                )}
+                {accepted(r) && (
+                  <span className="ml-1 rounded bg-blue-100 px-1 text-xs">accepted</span>
+                )}
                 {r.state === 'candidate' && (
                   <div className="text-xs text-gray-500">
                     since {r.firstSeenAt}; confirms on next observation after{' '}
