@@ -72,6 +72,15 @@ export default async function IncidentDetailPage({
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <section className="rounded border p-4">
           <h2 className="mb-2 font-medium">Expected vs observed</h2>
+          {inc.state === 'resolved' && (
+            <p className="mb-2 text-xs text-gray-500">
+              Values at last confirmed mismatch (historical) — see{' '}
+              <Link href={`/accounts/${inc.accountId}`} className="underline">
+                the account page
+              </Link>{' '}
+              for current access.
+            </p>
+          )}
           {inc.expected === undefined ? (
             <p className="text-sm">No boolean expectation (coverage / integrity incident).</p>
           ) : (

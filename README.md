@@ -40,7 +40,7 @@ pnpm typecheck && pnpm lint
    exceptions, confirmation explanation, hypothesis-labelled causes.
 5. `/setup/mapping` — "Suggest mapping" uses `OPENAI_API_KEY`+`OPENAI_BASE_URL`
    or `ANTHROPIC_API_KEY` if present, else a deterministic stub (labelled as
-   such). "Confirm" writes `.reconcile/policy-draft.json` and diffs it against
+   such). "Confirm" writes `apps/web/.reconcile/policy-draft.json` and diffs it against
    the published fixture policy.
 6. Recheck demo: set `access` to `false` for `acct_004` in
    `packages/fixtures/data/app.json` (or to match expectation), click Recheck on

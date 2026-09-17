@@ -42,36 +42,42 @@ export default function MappingPage() {
           {!draft || draft.mappings.length === 0 ? (
             <p className="text-sm text-gray-500">
               No draft yet. Use “Suggest mapping” then Confirm to write{' '}
-              <span className="font-mono">.reconcile/policy-draft.json</span>.
+              <span className="font-mono">apps/web/.reconcile/policy-draft.json</span>.
             </p>
           ) : (
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-gray-500">
-                  <th>price</th>
-                  <th>published</th>
-                  <th>draft</th>
-                  <th>diff</th>
-                </tr>
-              </thead>
-              <tbody>
-                {draft.mappings.map((m) => {
-                  const pub = published.get(m.priceId);
-                  const same =
-                    pub &&
-                    pub.capabilities.length === m.capabilities.length &&
-                    pub.capabilities.every((c) => m.capabilities.includes(c));
-                  return (
-                    <tr key={m.priceId} className="border-t">
-                      <td className="py-1 font-mono">{m.priceId}</td>
-                      <td className="py-1 font-mono">{pub ? pub.capabilities.join(',') : '—'}</td>
-                      <td className="py-1 font-mono">{m.capabilities.join(',')}</td>
-                      <td className="py-1">{same ? 'same' : 'changed'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full table-fixed text-xs">
+                <thead>
+                  <tr className="text-left text-gray-500">
+                    <th className="w-1/4">price</th>
+                    <th className="w-1/4">published</th>
+                    <th className="w-1/3">draft</th>
+                    <th>diff</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {draft.mappings.map((m) => {
+                    const pub = published.get(m.priceId);
+                    const same =
+                      pub &&
+                      pub.capabilities.length === m.capabilities.length &&
+                      pub.capabilities.every((c) => m.capabilities.includes(c));
+                    return (
+                      <tr key={m.priceId} className="border-t">
+                        <td className="py-1 pr-2 font-mono break-words">{m.priceId}</td>
+                        <td className="py-1 pr-2 font-mono break-words">
+                          {pub ? pub.capabilities.join(', ') : '—'}
+                        </td>
+                        <td className="py-1 pr-2 font-mono break-words">
+                          {m.capabilities.join(', ')}
+                        </td>
+                        <td className="py-1 pr-2">{same ? 'same' : 'changed'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
           {draft && (
             <p className="mt-2 text-xs text-gray-500">draft written {draft.writtenAt}</p>
