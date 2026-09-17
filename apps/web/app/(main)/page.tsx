@@ -3,6 +3,7 @@ import { runAssessment, settlingMinutes } from '../../lib/state';
 import { coverageIncidents } from '../../lib/coverage';
 import { RecheckButton } from '../../components/RecheckButton';
 import { ImportFixturesButton } from '../../components/ImportFixturesButton';
+import { getSession } from '../../lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,7 @@ const BUCKET_LABELS = [
 ] as const;
 
 export default async function OverviewPage() {
+  const session = await getSession();
   const snap = await runAssessment();
   const origins = snap.sources.origins ?? {
     stripe: snap.sources.origin,
@@ -34,6 +36,11 @@ export default async function OverviewPage() {
       if (f.kind === 'unknown') uncovered += 1;
       else covered += 1;
     }
+  const now = Date.now();
+  const snoozedCount = snap.incidents.filter(
+    (i) => i.workflow?.snoozedUntil && Date.parse(i.workflow.snoozedUntil) > now,
+  ).length;
+  const acceptedCount = snap.incidents.filter((i) => i.workflow?.acceptedRisk).length;
 
   return (
     <main>
@@ -131,12 +138,19 @@ export default async function OverviewPage() {
             <span> Partial-coverage badge on {partial.size} account(s).</span>
           )}
         </div>
+        {(snoozedCount > 0 || acceptedCount > 0) && (
+          <div className="mt-1 text-gray-600">
+            {snoozedCount} snoozed, {acceptedCount} accepted risk
+          </div>
+        )}
       </div>
-      <div className="flex items-center gap-3">
-        <RecheckButton />
-        <ImportFixturesButton />
-        <span className="text-xs text-gray-500">Import fixtures is a simulated collector</span>
-      </div>
+      {(session?.role === 'reviewer' || session?.role === 'admin') && (
+        <div className="flex items-center gap-3">
+          <RecheckButton />
+          <ImportFixturesButton />
+          <span className="text-xs text-gray-500">Import fixtures is a simulated collector</span>
+        </div>
+      )}
     </main>
   );
 }

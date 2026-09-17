@@ -224,6 +224,16 @@ export const IncidentSnapshotSchema = z.object({
 });
 export type IncidentSnapshot = z.infer<typeof IncidentSnapshotSchema>;
 
+export const IncidentWorkflowSchema = z.object({
+  assignee: z.string().optional(),
+  snoozedUntil: IsoInstant.optional(),
+  acceptedRisk: z
+    .object({ reason: z.string(), by: z.string(), at: IsoInstant })
+    .optional(),
+  comments: z.array(z.object({ by: z.string(), at: IsoInstant, text: z.string() })),
+});
+export type IncidentWorkflow = z.infer<typeof IncidentWorkflowSchema>;
+
 export const StoredIncidentSchema = z.object({
   firstSeenAt: IsoInstant,
   lastConfirmedAt: IsoInstant,
@@ -231,9 +241,22 @@ export const StoredIncidentSchema = z.object({
   state: IncidentStateSchema,
   resolutionReason: z.string().optional(),
   evidenceStale: z.boolean().optional(),
+  workflow: IncidentWorkflowSchema.optional(),
   snapshot: IncidentSnapshotSchema,
 });
 export type StoredIncident = z.infer<typeof StoredIncidentSchema>;
+
+export const UserRoleSchema = z.enum(['viewer', 'reviewer', 'admin']);
+export type UserRole = z.infer<typeof UserRoleSchema>;
+
+export const UserSchema = z.object({
+  id: z.string(),
+  email: z.string().min(1),
+  passwordHash: z.string(),
+  role: UserRoleSchema,
+  projectIds: z.array(z.string()),
+});
+export type User = z.infer<typeof UserSchema>;
 
 export const IncidentSchema = IncidentSnapshotSchema.extend({
   id: z.string(),
@@ -243,5 +266,6 @@ export const IncidentSchema = IncidentSnapshotSchema.extend({
   occurrences: z.number(),
   resolutionReason: z.string().optional(),
   evidenceStale: z.boolean().optional(),
+  workflow: IncidentWorkflowSchema.optional(),
 });
 export type Incident = z.infer<typeof IncidentSchema>;

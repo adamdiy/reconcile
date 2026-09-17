@@ -1,9 +1,11 @@
-import { withStore } from '../../../lib/state';
+import { withProject } from '../../../lib/state';
+import { requireSession } from '../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export default async function RunsPage() {
-  const runs = await withStore((s) => s.listRuns(50));
+  const session = await requireSession();
+  const runs = await withProject(session.projectId, (_s, ps) => ps.listRuns(50));
   return (
     <main>
       <h1 className="mb-4 text-xl font-semibold">Assessment runs</h1>
