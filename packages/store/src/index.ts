@@ -1,12 +1,15 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
 import type {
   AppInventory,
   IdentityLink,
+  Job,
+  NotificationRule,
   Policy,
   PolicyException,
+  Schedule,
   StoredIncident,
   StripeInventory,
   User,
@@ -45,7 +48,9 @@ export interface AssessmentRun {
     coveredPairs: number;
     totalPairs: number;
     incidentsOpen: number;
+    unknownReasons?: Record<string, number>;
   };
+  nextTransitionAt?: string;
 }
 export interface Project {
   id: string;
@@ -72,6 +77,9 @@ export interface ProjectStore {
   putIncidents(s: Record<string, StoredIncident>): Promise<void>;
   recordRun(r: AssessmentRun): Promise<void>;
   listRuns(limit?: number): Promise<AssessmentRun[]>;
+  listNotificationRules(): Promise<NotificationRule[]>;
+  upsertNotificationRule(r: NotificationRule): Promise<void>;
+  deleteNotificationRule(id: string): Promise<void>;
 }
 
 export interface Store {
@@ -83,9 +91,31 @@ export interface Store {
   listUsers(): Promise<User[]>;
   getUserByEmail(email: string): Promise<User | null>;
   upsertUser(u: User): Promise<void>;
+  /** Returns the existing unfinished job when idempotencyKey matches. */
+  enqueueJob(j: Job): Promise<Job>;
+  /** Lookup by idempotency key across all statuses (scheduler dedupe). */
+  getJobByIdempotencyKey(key: string): Promise<Job | null>;
+  leaseNextJob(now: string, leaseMs: number): Promise<Job | null>;
+  completeJob(id: string, at: string): Promise<void>;
+  failJob(id: string, error: string, retryAt: string | null, at: string): Promise<void>;
+  listJobs(projectId?: string, limit?: number): Promise<Job[]>;
+  getSchedule(projectId: string): Promise<Schedule | null>;
+  putSchedule(s: Schedule): Promise<void>;
+  putWebhookEvent(projectId: string, eventId: string, payload: unknown, receivedAt: string): Promise<'new' | 'duplicate'>;
+  listWebhookEvents(projectId: string, limit?: number): Promise<StoredWebhookEvent[]>;
+  touchWorkerHeartbeat(at: string): Promise<void>;
+  getWorkerHeartbeat(): Promise<string | null>;
+}
+
+export interface StoredWebhookEvent {
+  projectId: string;
+  eventId: string;
+  payload: unknown;
+  receivedAt: string;
 }
 
 const MAX_RUNS = 500;
+const MAX_JOBS = 2000;
 
 export function hashPassword(password: string, salt?: string): string {
   const s = salt ?? randomBytes(16).toString('hex');
@@ -195,11 +225,47 @@ class JsonProjectStore implements ProjectStore {
   async listRuns(limit = 50) {
     return this.read<AssessmentRun[]>('runs', []).slice(0, limit);
   }
+
+  async listNotificationRules() {
+    return this.read<NotificationRule[]>('notification-rules', []);
+  }
+  async upsertNotificationRule(r: NotificationRule) {
+    const list = (await this.listNotificationRules()).filter((x) => x.id !== r.id);
+    list.push(r);
+    list.sort((a, b) => a.id.localeCompare(b.id));
+    this.write('notification-rules', list);
+  }
+  async deleteNotificationRule(id: string) {
+    this.write(
+      'notification-rules',
+      (await this.listNotificationRules()).filter((x) => x.id !== id),
+    );
+  }
+}
+
+/** Root-level job/schedule/webhook collections shared by both adapters. */
+class JsonRootCollections {
+  constructor(private dir: string) {}
+  file(name: string): string {
+    return path.join(this.dir, `${name}.json`);
+  }
+  read<T>(name: string, fallback: T): T {
+    try {
+      return JSON.parse(readFileSync(this.file(name), 'utf8')) as T;
+    } catch {
+      return fallback;
+    }
+  }
+  write(name: string, data: unknown): void {
+    atomicWrite(this.file(name), data);
+  }
 }
 
 export class JsonFileStore implements Store {
+  private collections: JsonRootCollections;
   constructor(private dir: string) {
     mkdirSync(path.join(dir, 'projects'), { recursive: true });
+    this.collections = new JsonRootCollections(dir);
   }
 
   async migrate(): Promise<void> {}
@@ -245,6 +311,122 @@ export class JsonFileStore implements Store {
     list.push(u);
     list.sort((a, b) => a.email.localeCompare(b.email));
     this.write('users', list);
+  }
+
+  async enqueueJob(j: Job): Promise<Job> {
+    const jobs = this.collections.read<Job[]>('jobs', []);
+    const existing = jobs.find(
+      (x) => x.idempotencyKey === j.idempotencyKey && ['queued', 'running', 'failed'].includes(x.status),
+    );
+    if (existing) return existing;
+    jobs.push(j);
+    jobs.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    this.collections.write('jobs', jobs.slice(-MAX_JOBS));
+    return j;
+  }
+
+  async getJobByIdempotencyKey(key: string): Promise<Job | null> {
+    return this.collections.read<Job[]>('jobs', []).find((x) => x.idempotencyKey === key) ?? null;
+  }
+
+  /** Single-process lease guarded by an atomic mkdir lock. */
+  async leaseNextJob(now: string, leaseMs: number): Promise<Job | null> {
+    const lock = path.join(this.dir, 'jobs.lock');
+    try {
+      mkdirSync(lock);
+    } catch {
+      return null;
+    }
+    try {
+      const jobs = this.collections.read<Job[]>('jobs', []);
+      const candidates = jobs
+        .filter(
+          (j) =>
+            (j.status === 'queued' || j.status === 'failed') &&
+            j.runAfter <= now &&
+            (!j.leaseUntil || j.leaseUntil < now),
+        )
+        .sort((a, b) => a.runAfter.localeCompare(b.runAfter));
+      const job = candidates[0];
+      if (!job) return null;
+      job.status = 'running';
+      job.attempts += 1;
+      job.leaseUntil = new Date(Date.parse(now) + leaseMs).toISOString();
+      job.updatedAt = now;
+      this.collections.write('jobs', jobs);
+      return { ...job };
+    } finally {
+      rmSync(lock, { recursive: true, force: true });
+    }
+  }
+
+  async completeJob(id: string, at: string): Promise<void> {
+    const jobs = this.collections.read<Job[]>('jobs', []);
+    const job = jobs.find((j) => j.id === id);
+    if (job) {
+      job.status = 'succeeded';
+      job.leaseUntil = undefined;
+      job.updatedAt = at;
+      this.collections.write('jobs', jobs);
+    }
+  }
+
+  async failJob(id: string, error: string, retryAt: string | null, at: string): Promise<void> {
+    const jobs = this.collections.read<Job[]>('jobs', []);
+    const job = jobs.find((j) => j.id === id);
+    if (job) {
+      job.status = job.attempts >= job.maxAttempts || retryAt === null ? 'dead' : 'failed';
+      job.lastError = error;
+      job.leaseUntil = undefined;
+      if (retryAt) job.runAfter = retryAt;
+      job.updatedAt = at;
+      this.collections.write('jobs', jobs);
+    }
+  }
+
+  async listJobs(projectId?: string, limit = 100): Promise<Job[]> {
+    const jobs = this.collections.read<Job[]>('jobs', []);
+    return jobs
+      .filter((j) => !projectId || j.projectId === projectId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
+  }
+
+  async getSchedule(projectId: string): Promise<Schedule | null> {
+    const map = this.collections.read<Record<string, Schedule>>('schedules', {});
+    return map[projectId] ?? null;
+  }
+  async putSchedule(s: Schedule): Promise<void> {
+    const map = this.collections.read<Record<string, Schedule>>('schedules', {});
+    map[s.projectId] = s;
+    this.collections.write('schedules', map);
+  }
+
+  async putWebhookEvent(
+    projectId: string,
+    eventId: string,
+    payload: unknown,
+    receivedAt: string,
+  ): Promise<'new' | 'duplicate'> {
+    const events = this.collections.read<StoredWebhookEvent[]>('webhook-events', []);
+    if (events.some((e) => e.projectId === projectId && e.eventId === eventId)) return 'duplicate';
+    events.push({ projectId, eventId, payload, receivedAt });
+    this.collections.write('webhook-events', events);
+    return 'new';
+  }
+  async listWebhookEvents(projectId: string, limit = 50): Promise<StoredWebhookEvent[]> {
+    return this.collections
+      .read<StoredWebhookEvent[]>('webhook-events', [])
+      .filter((e) => e.projectId === projectId)
+      .slice(-limit)
+      .reverse();
+  }
+
+  async touchWorkerHeartbeat(at: string): Promise<void> {
+    this.collections.write('worker', { lastTickAt: at });
+  }
+  async getWorkerHeartbeat(): Promise<string | null> {
+    return this.collections.read<{ lastTickAt?: string }>('worker', {}).lastTickAt ?? null;
   }
 }
 
@@ -405,6 +587,24 @@ class PostgresProjectStore implements ProjectStore {
       return rows.map((r) => r.payload as AssessmentRun);
     });
   }
+
+  async listNotificationRules() {
+    return this.scoped(async (tx) => {
+      const rows = await tx`SELECT payload FROM notification_rules WHERE project_id = ${this.projectId} ORDER BY id`;
+      return rows.map((r) => r.payload as NotificationRule);
+    });
+  }
+  async upsertNotificationRule(r: NotificationRule) {
+    await this.scoped(async (tx) => {
+      await tx`INSERT INTO notification_rules (project_id, id, payload) VALUES (${this.projectId}, ${r.id}, ${this.j(r)})
+        ON CONFLICT (project_id, id) DO UPDATE SET payload = EXCLUDED.payload`;
+    });
+  }
+  async deleteNotificationRule(id: string) {
+    await this.scoped(async (tx) => {
+      await tx`DELETE FROM notification_rules WHERE project_id = ${this.projectId} AND id = ${id}`;
+    });
+  }
 }
 
 export class PostgresStore implements Store {
@@ -414,9 +614,13 @@ export class PostgresStore implements Store {
   }
 
   async migrate(): Promise<void> {
+    // Transaction-scoped advisory lock: pooled connections make session-level locks unsafe.
     const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../sql');
-    for (const f of ['001_init.sql', '002_tenancy.sql'])
-      await this.sql.unsafe(readFileSync(path.join(dir, f), 'utf8'));
+    await this.sql.begin(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(727272)`;
+      for (const f of ['001_init.sql', '002_tenancy.sql', '003_jobs.sql'])
+        await tx.unsafe(readFileSync(path.join(dir, f), 'utf8'));
+    });
   }
   async close(): Promise<void> {
     await this.sql.end();
@@ -447,6 +651,120 @@ export class PostgresStore implements Store {
     await this.sql`INSERT INTO users (id, email, payload) VALUES (${u.id}, ${u.email}, ${this.sql.json(u as unknown as postgres.JSONValue)})
       ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, payload = EXCLUDED.payload`;
   }
+
+  private jobOf(r: postgres.Row): Job {
+    return {
+      id: r.id,
+      projectId: r.project_id,
+      kind: r.kind,
+      payload: r.payload,
+      idempotencyKey: r.idempotency_key,
+      status: r.status,
+      attempts: r.attempts,
+      maxAttempts: r.max_attempts,
+      runAfter: new Date(r.run_after).toISOString(),
+      leaseUntil: r.lease_until ? new Date(r.lease_until).toISOString() : undefined,
+      lastError: r.last_error ?? undefined,
+      createdAt: new Date(r.created_at).toISOString(),
+      updatedAt: new Date(r.updated_at).toISOString(),
+    };
+  }
+
+  async enqueueJob(j: Job): Promise<Job> {
+    return this.sql.begin(async (tx) => {
+      const existing = await tx`SELECT * FROM jobs
+        WHERE idempotency_key = ${j.idempotencyKey} AND status IN ('queued','running','failed')
+        ORDER BY created_at LIMIT 1`;
+      if (existing[0]) return this.jobOf(existing[0]);
+      const rows = await tx`INSERT INTO jobs
+        (id, project_id, kind, payload, idempotency_key, status, attempts, max_attempts, run_after, lease_until, last_error, created_at, updated_at)
+        VALUES (${j.id}, ${j.projectId}, ${j.kind}, ${this.sql.json(j.payload as postgres.JSONValue)}, ${j.idempotencyKey},
+          ${j.status}, ${j.attempts}, ${j.maxAttempts}, ${j.runAfter}, ${j.leaseUntil ?? null}, ${j.lastError ?? null},
+          ${j.createdAt}, ${j.updatedAt})
+        RETURNING *`;
+      return this.jobOf(rows[0]);
+    }) as unknown as Promise<Job>;
+  }
+
+  async getJobByIdempotencyKey(key: string): Promise<Job | null> {
+    const rows = await this.sql`SELECT * FROM jobs WHERE idempotency_key = ${key} ORDER BY created_at DESC LIMIT 1`;
+    return rows[0] ? this.jobOf(rows[0]) : null;
+  }
+
+  async leaseNextJob(now: string, leaseMs: number): Promise<Job | null> {
+    return this.sql.begin(async (tx) => {
+      const leaseUntil = new Date(Date.parse(now) + leaseMs).toISOString();
+      const rows = await tx`UPDATE jobs
+        SET status = 'running', attempts = attempts + 1, lease_until = ${leaseUntil}, updated_at = ${now}
+        WHERE id = (
+          SELECT id FROM jobs
+          WHERE status IN ('queued','failed') AND run_after <= ${now}
+            AND (lease_until IS NULL OR lease_until < ${now})
+          ORDER BY run_after LIMIT 1
+          FOR UPDATE SKIP LOCKED
+        )
+        RETURNING *`;
+      return rows[0] ? this.jobOf(rows[0]) : null;
+    }) as unknown as Promise<Job | null>;
+  }
+
+  async completeJob(id: string, at: string): Promise<void> {
+    await this.sql`UPDATE jobs SET status = 'succeeded', lease_until = NULL, updated_at = ${at} WHERE id = ${id}`;
+  }
+
+  async failJob(id: string, error: string, retryAt: string | null, at: string): Promise<void> {
+    await this.sql`UPDATE jobs SET
+      status = CASE WHEN attempts >= max_attempts OR ${retryAt}::timestamptz IS NULL THEN 'dead' ELSE 'failed' END,
+      last_error = ${error}, lease_until = NULL,
+      run_after = COALESCE(${retryAt}::timestamptz, run_after), updated_at = ${at}
+      WHERE id = ${id}`;
+  }
+
+  async listJobs(projectId?: string, limit = 100): Promise<Job[]> {
+    const rows = projectId
+      ? await this.sql`SELECT * FROM jobs WHERE project_id = ${projectId} ORDER BY created_at DESC LIMIT ${limit}`
+      : await this.sql`SELECT * FROM jobs ORDER BY created_at DESC LIMIT ${limit}`;
+    return rows.map((r) => this.jobOf(r));
+  }
+
+  async getSchedule(projectId: string): Promise<Schedule | null> {
+    const rows = await this.sql`SELECT payload FROM schedules WHERE project_id = ${projectId}`;
+    return (rows[0]?.payload as Schedule) ?? null;
+  }
+  async putSchedule(s: Schedule): Promise<void> {
+    await this.sql`INSERT INTO schedules (project_id, payload) VALUES (${s.projectId}, ${this.sql.json(s as unknown as postgres.JSONValue)})
+      ON CONFLICT (project_id) DO UPDATE SET payload = EXCLUDED.payload`;
+  }
+
+  async putWebhookEvent(
+    projectId: string,
+    eventId: string,
+    payload: unknown,
+    receivedAt: string,
+  ): Promise<'new' | 'duplicate'> {
+    const res = await this.sql`INSERT INTO webhook_events (project_id, event_id, received_at, payload)
+      VALUES (${projectId}, ${eventId}, ${receivedAt}, ${this.sql.json(payload as postgres.JSONValue)})
+      ON CONFLICT (project_id, event_id) DO NOTHING`;
+    return res.count === 0 ? 'duplicate' : 'new';
+  }
+  async listWebhookEvents(projectId: string, limit = 50): Promise<StoredWebhookEvent[]> {
+    const rows = await this.sql`SELECT * FROM webhook_events WHERE project_id = ${projectId} ORDER BY received_at DESC LIMIT ${limit}`;
+    return rows.map((r) => ({
+      projectId: r.project_id,
+      eventId: r.event_id,
+      payload: r.payload,
+      receivedAt: new Date(r.received_at).toISOString(),
+    }));
+  }
+
+  async touchWorkerHeartbeat(at: string): Promise<void> {
+    await this.sql`INSERT INTO worker_state (id, payload) VALUES ('heartbeat', ${this.sql.json({ lastTickAt: at })})
+      ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload`;
+  }
+  async getWorkerHeartbeat(): Promise<string | null> {
+    const rows = await this.sql`SELECT payload->>'lastTickAt' AS tick FROM worker_state WHERE id = 'heartbeat'`;
+    return (rows[0]?.tick as string) ?? null;
+  }
 }
 
 export function createStore(env: NodeJS.ProcessEnv = process.env): Store {
@@ -469,8 +787,14 @@ export async function seedFromFixtures(
   projectId = 'default',
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<void> {
-  if (!(await store.listProjects()).some((p) => p.id === projectId))
-    await store.createProject({ id: projectId, name: projectId === 'default' ? 'Default' : projectId });
+  if (!(await store.listProjects()).some((p) => p.id === projectId)) {
+    // Concurrent seeds race on insert; the loser sees 'already exists'.
+    try {
+      await store.createProject({ id: projectId, name: projectId === 'default' ? 'Default' : projectId });
+    } catch (e) {
+      if (!(e instanceof Error && e.message.includes('already exists'))) throw e;
+    }
+  }
   if (!(await store.getUserByEmail('admin@local')))
     await store.upsertUser({
       id: 'user_admin',
@@ -481,13 +805,18 @@ export async function seedFromFixtures(
     });
   const ps = store.forProject(projectId);
   if (!(await ps.getPublishedPolicy())) {
-    await ps.publishPolicy({
+    // Concurrent seeds race on insert; the loser sees 'already exists'.
+    try {
+      await ps.publishPolicy({
       version: fixtures.policy.version,
       policy: fixtures.policy,
       publishedAt: new Date().toISOString(),
       publishedBy: 'fixtures',
       note: 'seeded from fixture policy',
-    });
+      });
+    } catch (e) {
+      if (!(e instanceof Error && e.message.includes('already exists'))) throw e;
+    }
   }
   if ((await ps.listLinks()).length === 0)
     for (const l of fixtures.links) await ps.upsertLink(l);

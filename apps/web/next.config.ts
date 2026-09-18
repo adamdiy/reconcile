@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  serverExternalPackages: ['nodemailer', 'stripe', 'postgres'],
+};
 
 export default nextConfig;

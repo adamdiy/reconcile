@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+delete process.env.DATABASE_URL;
 process.env.RECONCILE_STATE_DIR = mkdtempSync(path.join(tmpdir(), 'reconcile-web-'));
 
 import { runAssessment, withStore } from '../lib/state';

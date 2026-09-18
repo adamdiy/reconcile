@@ -6,10 +6,12 @@ import { withStore } from '../../lib/state';
 import { loadFixtures } from '@reconcile/fixtures';
 import { seedFromFixtures } from '@reconcile/store';
 import { logout, switchProject } from '../../lib/auth-actions';
+import { ensureWorkerStarted } from '../../lib/worker';
 
 export const metadata = { title: 'Reconcile' };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  await ensureWorkerStarted();
   const session = await getSession();
   const projects = session
     ? await withStore(async (store) => {
@@ -30,6 +32,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               <Link href="/">Overview</Link>
               <Link href="/incidents">Incidents</Link>
               <Link href="/runs">Runs</Link>
+              <Link href="/jobs">Jobs</Link>
+              <Link href="/notifications">Outbox</Link>
+              <Link href="/metrics">Metrics</Link>
               <Link href="/setup/policy">Policy</Link>
               <Link href="/setup/exceptions">Exceptions</Link>
               <Link href="/setup/identity">Identity</Link>
@@ -38,6 +43,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 <>
                   <Link href="/settings/users">Users</Link>
                   <Link href="/settings/projects">Projects</Link>
+                  <Link href="/settings/notifications">Notify</Link>
                 </>
               )}
             </nav>

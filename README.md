@@ -97,3 +97,8 @@ on live data instead of fixtures.
 | `APP_DATABASE_URL` | unset | Referenced by collector configs as `env:APP_DATABASE_URL` |
 | `RECONCILE_SESSION_SECRET` | dev default | HMAC key for session cookies — set in any shared deployment |
 | `RECONCILE_ADMIN_PASSWORD` | `reconcile` | Password for the seeded `admin@local` user |
+| `RECONCILE_EMBEDDED_WORKER` | `1` | Set to `0` to disable the in-process job worker in dev |
+| `RECONCILE_JOB_HANDLERS` | unset | Module exporting `jobHandlers` for the standalone `reconcile-worker` bin |
+| `STRIPE_WEBHOOK_SECRET` | unset | `whsec_…` for `/api/webhooks/stripe`; unsigned webhooks are never accepted (503 when unset) |
+| `SMTP_URL` | unset | `smtp://…` for the email notification channel |
+| `SLACK_WEBHOOK_URL` | unset | Referenced by notification rules as `env:SLACK_WEBHOOK_URL` |
