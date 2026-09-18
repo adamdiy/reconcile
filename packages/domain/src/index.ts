@@ -313,3 +313,36 @@ export const NotificationRuleSchema = z.object({
   enabled: z.boolean(),
 });
 export type NotificationRule = z.infer<typeof NotificationRuleSchema>;
+
+export const EvidenceSchema = z.object({
+  id: z.string(),
+  description: z.string().optional(),
+  observedAt: IsoInstant.optional(),
+});
+export type Evidence = z.infer<typeof EvidenceSchema>;
+
+export const IncidentExplanationSchema = z.object({
+  summary: z.string(),
+  hypotheses: z.array(
+    z.object({
+      text: z.string(),
+      evidenceIds: z.array(z.string()),
+      confidence: z.enum(['low', 'medium', 'high']),
+    }),
+  ),
+  suggestedNextStep: z.string(),
+  provider: z.string(),
+  model: z.string(),
+  generatedAt: IsoInstant,
+});
+export type IncidentExplanation = z.infer<typeof IncidentExplanationSchema>;
+
+export const ExceptionDraftSchema = z.object({
+  exception: PolicyExceptionSchema,
+  rationale: z.string(),
+  quotedSource: z.array(z.string()),
+  provider: z.string(),
+  model: z.string(),
+  generatedAt: IsoInstant,
+});
+export type ExceptionDraft = z.infer<typeof ExceptionDraftSchema>;

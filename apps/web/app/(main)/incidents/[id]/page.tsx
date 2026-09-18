@@ -4,6 +4,9 @@ import { runAssessment, settlingMinutes } from '../../../../lib/state';
 import { coverageIncidents } from '../../../../lib/coverage';
 import { RecheckButton } from '../../../../components/RecheckButton';
 import { WorkflowPanel } from '../../../../components/WorkflowPanel';
+import { ExplainButton } from '../../../../components/ExplainButton';
+import { explainIncident } from '../../../../lib/ai-actions';
+import { describeProvider } from '@reconcile/ai';
 import { getSession } from '../../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -137,6 +140,15 @@ export default async function IncidentDetailPage({
             <li key={e}>{e}</li>
           ))}
         </ul>
+        {(session?.role === 'reviewer' || session?.role === 'admin') && (
+          <div className="mt-3 rounded border border-slate-300 p-3">
+            <p className="mb-1 text-xs text-amber-700">
+              Advisory: AI output does not change results or authorize access.
+              {describeProvider().name === 'stub' && ' (stub provider — canned suggestions)'}
+            </p>
+            <ExplainButton fingerprint={inc.id} action={explainIncident} />
+          </div>
+        )}
         <div className="mt-2 text-sm">
           Applicable rule: <span className="font-mono">{inc.ruleId}</span>
           {rule && (

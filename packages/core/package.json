@@ -1,5 +1,5 @@
 {
-  "name": "@reconcile/ai",
+  "name": "@reconcile/core",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -16,9 +16,12 @@
   },
   "dependencies": {
     "@reconcile/domain": "workspace:*",
+    "@reconcile/engine": "workspace:*",
+    "@reconcile/store": "workspace:*",
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@reconcile/fixtures": "workspace:*",
     "@types/node": "22.18.5",
     "typescript": "5.9.2",
     "vitest": "3.2.4"
