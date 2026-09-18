@@ -24,6 +24,7 @@ export async function proposeRepairAction(
         incidentId,
         commandId,
         assessment,
+        capability: inc.feature,
         proposer: session.email,
         desired: inc.expected,
         expiresHours: expiresHours || 24,
