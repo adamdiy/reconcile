@@ -126,6 +126,20 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
                   </td>
                 </tr>
               ))}
+              {(a.quantityChecks ?? []).map((q) => (
+                <tr key={q.check + (q.metric ?? '')} className="border-t">
+                  <td className="py-1 font-mono text-xs">
+                    {q.check === 'seats' ? 'seats' : `usage:${q.metric}`}
+                  </td>
+                  <td className="py-1">{q.kind}</td>
+                  <td className="py-1 font-mono text-xs">
+                    {q.kind === 'unknown' ? `(${q.reasons.join(',')})` : q.expected}
+                  </td>
+                  <td className="py-1 font-mono text-xs">
+                    {q.kind === 'unknown' ? '—' : (q.observed ?? '—')}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
           {observation && (

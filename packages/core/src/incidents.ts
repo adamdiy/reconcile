@@ -6,6 +6,7 @@ import type {
   Incident,
   IncidentState,
   IncidentSnapshot,
+  QuantityEvaluation,
   StoredIncident,
 } from '@reconcile/domain';
 
@@ -15,6 +16,14 @@ export function checkFor(f: FeatureEvaluation): CheckKind {
   if (f.kind === 'mismatch')
     return f.expected ? 'expected_feature_missing' : 'unexpected_feature_enabled';
   return 'coverage_gap';
+}
+
+function quantityCheckFor(q: QuantityEvaluation): CheckKind {
+  return q.check === 'seats' ? 'seats_over_cap' : 'usage_not_billed';
+}
+
+function quantityFeature(q: QuantityEvaluation): string {
+  return q.check === 'seats' ? 'seats' : `usage:${q.metric}`;
 }
 
 export interface ReconcileContext {
@@ -58,6 +67,26 @@ export function reconcileIncidents(
           expected: f.expected,
           observed: f.observed,
           evidenceIds: f.evidenceIds,
+        },
+      });
+    }
+    for (const q of a.quantityChecks) {
+      if (q.kind !== 'mismatch') continue;
+      const feature = quantityFeature(q);
+      const id = fingerprint(a.accountId, `quantity:${q.check}:${q.metric ?? ''}`, feature);
+      detections.set(id, {
+        id,
+        assessment: a,
+        snapshot: {
+          accountId: a.accountId,
+          ruleId: `quantity:${q.check}`,
+          feature,
+          check: quantityCheckFor(q),
+          kind: 'mismatch',
+          severity: deriveSeverity(quantityCheckFor(q)),
+          expectedQuantity: q.expected,
+          observedQuantity: q.observed,
+          evidenceIds: q.evidenceIds,
         },
       });
     }
@@ -144,6 +173,16 @@ export function reconcileIncidents(
       } else {
         resolved = true;
         reason = 'verified_remediated';
+      }
+    } else if (snap.check === 'seats_over_cap' || snap.check === 'usage_not_billed') {
+      const q = assessment.quantityChecks.find(
+        (x) => quantityFeature(x) === snap.feature,
+      );
+      if (q?.kind === 'match') {
+        resolved = true;
+        reason = 'verified_remediated';
+      } else {
+        stale = true;
       }
     } else {
       const feature = assessment.features.find((f) => f.feature === snap.feature);

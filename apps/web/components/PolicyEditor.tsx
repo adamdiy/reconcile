@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import type { Policy } from '@reconcile/domain';
+import type { AssessmentDiff } from '@reconcile/core';
 import { discardPolicyDraft, publishPolicy, savePolicyDraft } from '../lib/actions';
+import { previewImpact } from '../lib/audit-actions';
+import { DiffSummary } from './DiffTable';
 
 interface Row {
   ruleId: string;
@@ -27,6 +30,8 @@ export function PolicyEditor({
   const [trial, setTrial] = useState(initial.lifecycle.trialGrantsAccess);
   const [fresh, setFresh] = useState(String(initial.freshness.maxEvidenceAgeMinutes));
   const [msg, setMsg] = useState<string | null>(null);
+  const [diff, setDiff] = useState<AssessmentDiff | null>(null);
+  const [confirmPublish, setConfirmPublish] = useState(false);
 
   function toPolicy(): Policy {
     return {
@@ -35,6 +40,8 @@ export function PolicyEditor({
       priceMappings: rows.filter((r) => r.priceId.trim() !== ''),
       lifecycle: { pastDueGraceHours: Number(grace), trialGrantsAccess: trial },
       freshness: { maxEvidenceAgeMinutes: Number(fresh) },
+      seats: initial.seats,
+      usage: initial.usage,
     };
   }
 
@@ -156,9 +163,22 @@ export function PolicyEditor({
         <button
           disabled={pending}
           className="rounded border px-3 py-1 text-sm"
-          onClick={() => start(async () => { setMsg(null); await discardPolicyDraft(); setMsg('draft discarded'); })}
+          onClick={() => start(async () => { setMsg(null); await discardPolicyDraft(); setMsg('draft discarded'); setDiff(null); })}
         >
           Discard draft
+        </button>
+        <button
+          disabled={pending}
+          className="rounded border px-3 py-1 text-sm"
+          onClick={() =>
+            start(async () => {
+              setMsg(null);
+              setConfirmPublish(false);
+              setDiff(await previewImpact(toPolicy()));
+            })
+          }
+        >
+          Preview impact
         </button>
         <button
           disabled={pending}
@@ -166,16 +186,31 @@ export function PolicyEditor({
           onClick={() =>
             start(async () => {
               setMsg(null);
+              if (!confirmPublish) {
+                setDiff(await previewImpact(toPolicy()));
+                setConfirmPublish(true);
+                return;
+              }
               await savePolicyDraft(toPolicy());
               const res = await publishPolicy(note);
               setMsg(res.ok ? `published` : `publish refused: ${res.error}`);
+              setConfirmPublish(false);
+              setDiff(null);
             })
           }
         >
-          Publish
+          {confirmPublish ? 'Confirm publish' : 'Publish'}
         </button>
       </div>
       {msg && <p className="mt-2 text-xs text-gray-600">{msg}</p>}
+      {diff && (
+        <div className="mt-4 rounded border bg-slate-50 p-3">
+          <h3 className="mb-1 text-sm font-medium">
+            {confirmPublish ? 'Publishing will cause:' : 'Impact preview (published → this draft)'}
+          </h3>
+          <DiffSummary diff={diff} />
+        </div>
+      )}
     </div>
   );
 }

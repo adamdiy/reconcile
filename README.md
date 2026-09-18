@@ -39,7 +39,8 @@ pnpm typecheck && pnpm lint
 2. Overview shows the four disjoint buckets, coverage counts, detection envelope.
 3. `/incidents` lists mismatches (e.g. `acct_004` unexpected access, `acct_005`
    expected feature missing, `acct_008` duplicate local identity, `acct_010`
-   billing-only expected-missing) plus derived low-severity coverage gaps.
+   billing-only expected-missing, `acct_013` usage not observed) plus derived
+   low-severity coverage gaps.
 4. Open an incident — expected/observed diff, evidence IDs, applicable rule,
    exceptions, confirmation explanation, hypothesis-labelled causes.
 5. `/setup/mapping` — "Suggest mapping" uses `OPENAI_API_KEY`+`OPENAI_BASE_URL`

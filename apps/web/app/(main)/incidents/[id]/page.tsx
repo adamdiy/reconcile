@@ -17,6 +17,8 @@ const CHECK_TITLES: Record<string, string> = {
   duplicate_local_identity: 'Duplicate local subscription identity',
   coverage_gap: 'Coverage gap',
   monitoring_health: 'Monitoring health',
+  seats_over_cap: 'Seats over cap',
+  usage_not_billed: 'Usage not billed',
 };
 
 export default async function IncidentDetailPage({
@@ -87,7 +89,20 @@ export default async function IncidentDetailPage({
               for current access.
             </p>
           )}
-          {inc.expected === undefined ? (
+          {inc.expectedQuantity !== undefined ? (
+            <table className="text-sm">
+              <tbody>
+                <tr>
+                  <td className="pr-4 text-gray-500">expected</td>
+                  <td className="font-mono">{inc.expectedQuantity}</td>
+                </tr>
+                <tr>
+                  <td className="pr-4 text-gray-500">observed</td>
+                  <td className="font-mono">{String(inc.observedQuantity)}</td>
+                </tr>
+              </tbody>
+            </table>
+          ) : inc.expected === undefined ? (
             <p className="text-sm">No boolean expectation (coverage / integrity incident).</p>
           ) : (
             <table className="text-sm">

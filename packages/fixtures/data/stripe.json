@@ -168,8 +168,9 @@
       "status": "active",
       "items": [
         {
-          "priceId": "price_basic",
-          "quantity": 1
+          "priceId": "price_team_seat",
+          "quantity": 5,
+          "usageType": "licensed"
         }
       ],
       "cancelAtPeriodEnd": false,
@@ -187,10 +188,23 @@
         {
           "priceId": "price_addon",
           "quantity": 1
+        },
+        {
+          "priceId": "price_api_calls",
+          "quantity": 1,
+          "usageType": "metered"
         }
       ],
       "cancelAtPeriodEnd": false,
-      "observedAt": "2026-09-16T18:00:00Z"
+      "observedAt": "2026-09-16T18:00:00Z",
+      "usageRecords": [
+        {
+          "priceId": "price_api_calls",
+          "quantity": 9000,
+          "periodStart": "2026-09-01T00:00:00Z",
+          "periodEnd": "2026-10-01T00:00:00Z"
+        }
+      ]
     },
     {
       "id": "sub_010",
@@ -227,6 +241,20 @@
         {
           "priceId": "price_pro",
           "quantity": 1
+        }
+      ],
+      "cancelAtPeriodEnd": false,
+      "observedAt": "2026-09-16T18:00:00Z"
+    },
+    {
+      "id": "sub_013",
+      "customerId": "cus_013",
+      "status": "active",
+      "items": [
+        {
+          "priceId": "price_api_calls",
+          "quantity": 1,
+          "usageType": "metered"
         }
       ],
       "cancelAtPeriodEnd": false,

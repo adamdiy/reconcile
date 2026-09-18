@@ -170,7 +170,8 @@
         "reports": true,
         "exports": false,
         "priority_support": false
-      }
+      },
+      "seatsUsed": 7
     },
     {
       "accountId": "acct_009",
@@ -190,6 +191,9 @@
         "reports": true,
         "exports": true,
         "priority_support": true
+      },
+      "usage": {
+        "api_calls": 12000
       }
     },
     {
@@ -230,6 +234,29 @@
         "reports": true,
         "exports": true,
         "priority_support": false
+      }
+    },
+    {
+      "accountId": "acct_013",
+      "stripeCustomerIds": [
+        "cus_013"
+      ],
+      "localBillingRecords": [
+        {
+          "localId": "lr_013",
+          "stripeSubscriptionId": "sub_013",
+          "stripeCustomerId": "cus_013"
+        }
+      ],
+      "observedAt": "2026-09-16T18:30:00Z",
+      "method": "database_view",
+      "access": {
+        "reports": true,
+        "exports": false,
+        "priority_support": false
+      },
+      "usage": {
+        "api_calls": 5000
       }
     }
   ]

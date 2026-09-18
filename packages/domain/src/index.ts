@@ -14,6 +14,7 @@ export const UnknownReasonSchema = z.enum([
   'conflicting_exceptions',
   'missing_permission',
   'unobserved_feature',
+  'not_observed',
 ]);
 export type UnknownReason = z.infer<typeof UnknownReasonSchema>;
 
@@ -51,7 +52,37 @@ export const IntegrityFindingSchema = z.object({
 });
 export type IntegrityFinding = z.infer<typeof IntegrityFindingSchema>;
 
+export const QuantityEvaluationSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('match'),
+    check: z.enum(['seats', 'usage']),
+    metric: z.string().optional(),
+    expected: z.number(),
+    observed: z.number(),
+    evidenceIds: z.array(z.string()),
+  }),
+  z.object({
+    kind: z.literal('mismatch'),
+    check: z.enum(['seats', 'usage']),
+    metric: z.string().optional(),
+    expected: z.number(),
+    observed: z.number(),
+    evidenceIds: z.array(z.string()),
+  }),
+  z.object({
+    kind: z.literal('unknown'),
+    check: z.enum(['seats', 'usage']),
+    metric: z.string().optional(),
+    expected: z.number(),
+    observed: z.number().optional(),
+    reasons: z.array(UnknownReasonSchema),
+    evidenceIds: z.array(z.string()),
+  }),
+]);
+export type QuantityEvaluation = z.infer<typeof QuantityEvaluationSchema>;
+
 export const AccountAssessmentSchema = z.object({
+  quantityChecks: z.array(QuantityEvaluationSchema).default([]),
   accountId: z.string(),
   policyVersion: z.string(),
   engineVersion: z.string(),
@@ -79,7 +110,23 @@ export const StripeSubscriptionFactSchema = z.object({
   id: z.string(),
   customerId: z.string(),
   status: SubscriptionStatusSchema,
-  items: z.array(z.object({ priceId: z.string(), quantity: z.number() })),
+  items: z.array(
+    z.object({
+      priceId: z.string(),
+      quantity: z.number(),
+      usageType: z.enum(['licensed', 'metered']).optional(),
+    }),
+  ),
+  usageRecords: z
+    .array(
+      z.object({
+        priceId: z.string(),
+        quantity: z.number(),
+        periodStart: IsoInstant,
+        periodEnd: IsoInstant,
+      }),
+    )
+    .optional(),
   scheduleId: z.string().optional(),
   pauseCollection: z.boolean().optional(),
   trialEnd: IsoInstant.optional(),
@@ -127,6 +174,8 @@ export const AccountObservationSchema = z.object({
   sourceRevision: z.string().optional(),
   method: z.enum(['database_view', 'authorization_adapter']),
   access: z.record(z.boolean()),
+  seatsUsed: z.number().optional(),
+  usage: z.record(z.number()).optional(),
   contextsChecked: z
     .array(z.object({ subject: z.string(), resource: z.string(), action: z.string() }))
     .optional(),
@@ -166,6 +215,10 @@ export const PolicySchema = z.object({
   freshness: z.object({
     maxEvidenceAgeMinutes: z.number(),
   }),
+  seats: z.object({ priceIds: z.array(z.string()) }).optional(),
+  usage: z
+    .array(z.object({ metric: z.string(), priceId: z.string(), tolerancePct: z.number() }))
+    .optional(),
 });
 export type Policy = z.infer<typeof PolicySchema>;
 
@@ -201,6 +254,8 @@ export const CheckKindSchema = z.enum([
   'duplicate_local_identity',
   'coverage_gap',
   'monitoring_health',
+  'seats_over_cap',
+  'usage_not_billed',
 ]);
 export type CheckKind = z.infer<typeof CheckKindSchema>;
 
@@ -219,6 +274,8 @@ export const IncidentSnapshotSchema = z.object({
   severity: SeveritySchema,
   expected: z.boolean().optional(),
   observed: z.boolean().optional(),
+  expectedQuantity: z.number().optional(),
+  observedQuantity: z.number().optional(),
   reasons: z.array(z.string()).optional(),
   evidenceIds: z.array(z.string()),
 });
@@ -346,3 +403,24 @@ export const ExceptionDraftSchema = z.object({
   generatedAt: IsoInstant,
 });
 export type ExceptionDraft = z.infer<typeof ExceptionDraftSchema>;
+
+export const AuditBaselineSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  note: z.string().optional(),
+  createdAt: IsoInstant,
+  createdBy: z.string(),
+  policyVersion: z.string(),
+  engineVersion: z.string(),
+  sourceObservedAt: z.object({ stripe: IsoInstant, app: IsoInstant }),
+  assessments: z.array(AccountAssessmentSchema),
+  counts: z.object({
+    population: z.number(),
+    buckets: z.tuple([z.number(), z.number(), z.number(), z.number()]),
+    coveredPairs: z.number(),
+    totalPairs: z.number(),
+    incidentsOpen: z.number(),
+    unknownReasons: z.record(z.number()).optional(),
+  }),
+});
+export type AuditBaseline = z.infer<typeof AuditBaselineSchema>;
