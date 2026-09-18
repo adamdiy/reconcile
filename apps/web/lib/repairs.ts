@@ -37,6 +37,7 @@ export async function proposeRepair(
     incidentId: string;
     commandId: string;
     assessment: AccountAssessment;
+    capability?: string;
     proposer: string;
     desired?: boolean;
     expiresHours?: number;
@@ -45,7 +46,10 @@ export async function proposeRepair(
 ): Promise<RepairAction> {
   const command = (await ps.listRepairCommands()).find((c) => c.id === input.commandId);
   if (!command) throw new Error(`unknown repair command ${input.commandId}`);
-  const feature = featureFor(input.assessment, input.assessment.features.find((f) => f.kind === 'mismatch')?.feature ?? '');
+  const feature = featureFor(
+    input.assessment,
+    input.capability ?? input.assessment.features.find((f) => f.kind === 'mismatch')?.feature ?? '',
+  );
   if (!feature || feature.kind !== 'mismatch')
     throw new Error('repairs can only be proposed on a feature mismatch');
   if (!command.capabilities.includes(feature.feature))
