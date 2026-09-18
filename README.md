@@ -106,3 +106,7 @@ on live data instead of fixtures.
 | `RECONCILE_AI_PROVIDER` | auto | `stub` to force the stub provider, else auto-detected from the keys below |
 | `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` | unset | OpenAI-compatible advisory provider (`gpt-4o-mini` default model) |
 | `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | unset | Anthropic advisory provider (`claude-haiku-4-5` default model) |
+| `RECONCILE_BILLING_PROVIDER` | `stripe` | `stripe` / `chargebee` / `paddle` — see `docs/providers.md` (non-Stripe providers untested against live APIs) |
+| `CHARGEBEE_SITE` / `CHARGEBEE_API_KEY` | unset | Chargebee REST v2 credentials |
+| `PADDLE_API_KEY` / `PADDLE_ENV` | unset | Paddle Billing API key and `sandbox`/`production` |
+| `RECONCILE_REPAIR_VERIFY_MINUTES` | `30` | Window an executed repair gets to show matching evidence before failing |

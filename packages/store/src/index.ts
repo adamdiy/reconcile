@@ -10,6 +10,8 @@ import type {
   NotificationRule,
   Policy,
   PolicyException,
+  RepairAction,
+  RepairCommand,
   Schedule,
   StoredIncident,
   StripeInventory,
@@ -87,6 +89,12 @@ export interface ProjectStore {
   getBaseline(id: string): Promise<AuditBaseline | null>;
   putBaseline(b: AuditBaseline): Promise<void>;
   deleteBaseline(id: string): Promise<void>;
+  listRepairCommands(): Promise<RepairCommand[]>;
+  upsertRepairCommand(c: RepairCommand): Promise<void>;
+  deleteRepairCommand(id: string): Promise<void>;
+  listRepairActions(): Promise<RepairAction[]>;
+  getRepairAction(id: string): Promise<RepairAction | null>;
+  putRepairAction(a: RepairAction): Promise<void>;
 }
 
 export interface Store {
@@ -273,6 +281,34 @@ class JsonProjectStore implements ProjectStore {
       'baselines',
       this.read<AuditBaseline[]>('baselines', []).filter((x) => x.id !== id),
     );
+  }
+
+  async listRepairCommands() {
+    return this.read<RepairCommand[]>('repair-commands', []);
+  }
+  async upsertRepairCommand(c: RepairCommand) {
+    const list = (await this.listRepairCommands()).filter((x) => x.id !== c.id);
+    list.push(c);
+    list.sort((a, b) => a.id.localeCompare(b.id));
+    this.write('repair-commands', list);
+  }
+  async deleteRepairCommand(id: string) {
+    this.write(
+      'repair-commands',
+      (await this.listRepairCommands()).filter((x) => x.id !== id),
+    );
+  }
+  async listRepairActions() {
+    return this.read<RepairAction[]>('repair-actions', []);
+  }
+  async getRepairAction(id: string) {
+    return (await this.listRepairActions()).find((x) => x.id === id) ?? null;
+  }
+  async putRepairAction(a: RepairAction) {
+    const list = (await this.listRepairActions()).filter((x) => x.id !== a.id);
+    list.push(a);
+    list.sort((a2, b2) => a2.proposedAt.localeCompare(b2.proposedAt));
+    this.write('repair-actions', list);
   }
 }
 
@@ -699,6 +735,42 @@ class PostgresProjectStore implements ProjectStore {
       await tx`DELETE FROM audit_baselines WHERE project_id = ${this.projectId} AND id = ${id}`;
     });
   }
+
+  async listRepairCommands() {
+    return this.scoped(async (tx) => {
+      const rows = await tx`SELECT payload FROM repair_commands WHERE project_id = ${this.projectId} ORDER BY id`;
+      return rows.map((r) => r.payload as RepairCommand);
+    });
+  }
+  async upsertRepairCommand(c: RepairCommand) {
+    await this.scoped(async (tx) => {
+      await tx`INSERT INTO repair_commands (project_id, id, payload) VALUES (${this.projectId}, ${c.id}, ${this.j(c)})
+        ON CONFLICT (project_id, id) DO UPDATE SET payload = EXCLUDED.payload`;
+    });
+  }
+  async deleteRepairCommand(id: string) {
+    await this.scoped(async (tx) => {
+      await tx`DELETE FROM repair_commands WHERE project_id = ${this.projectId} AND id = ${id}`;
+    });
+  }
+  async listRepairActions() {
+    return this.scoped(async (tx) => {
+      const rows = await tx`SELECT payload FROM repair_actions WHERE project_id = ${this.projectId} ORDER BY payload->>'proposedAt'`;
+      return rows.map((r) => r.payload as RepairAction);
+    });
+  }
+  async getRepairAction(id: string) {
+    return this.scoped(async (tx) => {
+      const rows = await tx`SELECT payload FROM repair_actions WHERE project_id = ${this.projectId} AND id = ${id}`;
+      return (rows[0]?.payload as RepairAction) ?? null;
+    });
+  }
+  async putRepairAction(a: RepairAction) {
+    await this.scoped(async (tx) => {
+      await tx`INSERT INTO repair_actions (project_id, id, state, payload) VALUES (${this.projectId}, ${a.id}, ${a.state}, ${this.j(a)})
+        ON CONFLICT (project_id, id) DO UPDATE SET state = EXCLUDED.state, payload = EXCLUDED.payload`;
+    });
+  }
 }
 
 export class PostgresStore implements Store {
@@ -712,7 +784,7 @@ export class PostgresStore implements Store {
     const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../sql');
     await this.sql.begin(async (tx) => {
       await tx`SELECT pg_advisory_xact_lock(727272)`;
-      for (const f of ['001_init.sql', '002_tenancy.sql', '003_jobs.sql', '004_ai.sql', '005_audit.sql'])
+      for (const f of ['001_init.sql', '002_tenancy.sql', '003_jobs.sql', '004_ai.sql', '005_audit.sql', '006_repairs.sql'])
         await tx.unsafe(readFileSync(path.join(dir, f), 'utf8'));
     });
   }
@@ -916,6 +988,15 @@ export async function seedFromFixtures(
     for (const l of fixtures.links) await ps.upsertLink(l);
   if ((await ps.listExceptions()).length === 0)
     for (const e of fixtures.exceptions) await ps.upsertException(e);
+  if ((await ps.listRepairCommands()).length === 0)
+    await ps.upsertRepairCommand({
+      id: 'rc_demo_grant',
+      name: 'Grant capability (demo outbox)',
+      kind: 'local_outbox',
+      capabilities: ['reports', 'exports', 'priority_support'],
+      description:
+        'Demo command: writes the repair request to repairs-outbox.jsonl instead of calling a real endpoint.',
+    });
   if (!(await ps.getSources()))
     await ps.putSources({
       stripe: fixtures.stripe,

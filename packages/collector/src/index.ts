@@ -3,6 +3,8 @@ import postgres from 'postgres';
 import { z } from 'zod';
 import { AccountObservationSchema, AppInventorySchema } from '@reconcile/domain';
 import type { AccountObservation, AppInventory } from '@reconcile/domain';
+import { AuthzSourceConfigSchema, collectAuthz } from './authz.js';
+export * from './authz.js';
 
 export const ColumnMapSchema = z.object({
   accountId: z.string(),
@@ -37,6 +39,7 @@ export const CollectorConfigSchema = z.discriminatedUnion('source', [
     headers: z.record(z.string()).optional(),
     columns: ColumnMapSchema.optional(),
   }),
+  AuthzSourceConfigSchema,
 ]);
 export type CollectorConfig = z.infer<typeof CollectorConfigSchema>;
 
@@ -118,10 +121,12 @@ async function loadRows(
   let body: unknown;
   if (config.source === 'json') {
     body = JSON.parse(readFileSync(config.path, 'utf8'));
-  } else {
+  } else if (config.source === 'http') {
     const res = await fetch(config.url, { headers: config.headers });
     if (!res.ok) throw new Error(`http source returned ${res.status}`);
     body = await res.json();
+  } else {
+    throw new Error(`unsupported source for loadRows: ${config.source}`);
   }
   // A body already in AppInventory shape is used directly; otherwise {rows:[...]} or a bare
   // array of flat rows is mapped through the columns block.
@@ -136,6 +141,7 @@ export async function collect(
   config: CollectorConfig,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<AppInventory> {
+  if (config.source === 'authz') return collectAuthz(config, env);
   const runId = `arun_${new Date().toISOString()}`;
   const observedAt = new Date().toISOString();
   let result: { rows?: Row[]; inventory?: AppInventory; complete: boolean };
