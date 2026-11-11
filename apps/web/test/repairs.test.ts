@@ -24,6 +24,7 @@ async function seeded() {
   const ev = await evaluateProject(store, 'default', {
     fallback: { stripe: fixtures.stripe, app: fixtures.app, policy: fixtures.policy },
     settlingMs: 0,
+    evaluatedAt: '2026-09-16T19:00:00Z',
   });
   return { store, ps, ev, dir };
 }

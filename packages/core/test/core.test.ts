@@ -7,6 +7,9 @@ import { loadFixtures } from '@reconcile/fixtures';
 import type { AccountAssessment } from '@reconcile/domain';
 import { evaluateProject, diffAssessments } from '../src/index.js';
 
+// Fixture observations are dated; evaluating at wall-clock time makes them stale.
+const FIXTURE_NOW = '2026-09-16T19:00:00Z';
+
 async function seeded() {
   const dir = mkdtempSync(path.join(tmpdir(), 'reconcile-core-'));
   const store = new JsonFileStore(dir);
@@ -24,6 +27,7 @@ describe('evaluateProject', () => {
     const ev = await evaluateProject(store, 'default', {
       fallback: { stripe: fixtures.stripe, app: fixtures.app, policy: fixtures.policy },
       settlingMs: 0,
+      evaluatedAt: FIXTURE_NOW,
     });
     expect(ev.assessments.length).toBe(13);
     expect(ev.incidents.length).toBeGreaterThan(0);
@@ -38,6 +42,7 @@ describe('evaluateProject', () => {
     const ev = await evaluateProject(store, 'default', {
       fallback: { stripe: fixtures.stripe, app: fixtures.app, policy: fixtures.policy },
       settlingMs: 0,
+      evaluatedAt: FIXTURE_NOW,
     });
     const inc = ev.incidents.find(
       (i) => i.accountId === 'acct_005' && i.feature === 'exports',
@@ -51,6 +56,7 @@ describe('evaluateProject', () => {
     const opts = {
       fallback: { stripe: fixtures.stripe, app: fixtures.app, policy: fixtures.policy },
       settlingMs: 0,
+      evaluatedAt: FIXTURE_NOW,
     };
     const first = await evaluateProject(store, 'default', opts);
     const fp = first.incidents.find((i) => i.accountId === 'acct_005')!.id;

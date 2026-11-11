@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -24,6 +24,10 @@ const textOf = (r: { content?: unknown }) =>
   JSON.parse((r.content as { text: string }[])[0].text);
 
 describe('reconcile-mcp', () => {
+  // Fixture observations are dated; evaluating at wall-clock time makes them stale.
+  beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-16T19:00:00Z') }));
+  afterEach(() => vi.useRealTimers());
+
   it('registers only read-only tools', async () => {
     const { client } = await setup();
     const { tools } = await client.listTools();
