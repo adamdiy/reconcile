@@ -32,6 +32,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/web/**/*.ts', 'apps/web/**/*.tsx', 'packages/*/src/**/*.ts', '!**/node_modules/**') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
       - run: test -z "$(git ls-files 'packages/*/src/*.js' 'packages/*/src/*.d.ts' 'packages/*/src/*.map')"
         name: no committed build artifacts
       - run: pnpm -r --filter './packages/*' build
